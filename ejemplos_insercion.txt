@@ -1,0 +1,78 @@
+=========================================================
+EJEMPLOS DE INSERCIÓN DE DATOS POR CADA REGISTRO Y CAMPO
+=========================================================
+
+A continuación se detalla cómo se realiza una inserción de datos para cada una de las tablas (registros) del sistema, explicando el propósito de cada campo y usando datos de ejemplo diferentes a los insertados automáticamente.
+
+1. USUARIOS (Tabla: users)
+Propósito: Controlar el acceso al sistema.
+Campos y datos de ejemplo:
+- username (str): "carlos_conta" -> Nombre de usuario para iniciar sesión.
+- password_hash (str): "segura2026" -> Contraseña del usuario (en producción debería estar encriptada).
+- full_name (str): "Carlos Méndez" -> Nombre real de la persona.
+- role (str): "Contador" -> Rol dentro del sistema (Administrador, Contador, Operativo).
+- is_active (bool): True -> Indica si el usuario puede seguir iniciando sesión.
+
+2. PERSONAS / PROPIETARIOS / INQUILINOS (Tabla: persons)
+Propósito: Registrar a las personas involucradas en el condominio.
+Campos y datos de ejemplo:
+- cedula (str): "0912345678" -> Documento de identidad único.
+- name (str): "María Fernanda López" -> Nombre completo.
+- phone (str): "0987654321" -> Número de contacto principal.
+- email (str): "mflopez@correo.com" -> Correo electrónico para notificaciones.
+
+3. UNIDADES / DEPARTAMENTOS (Tabla: units)
+Propósito: Identificar las propiedades físicas dentro del condominio.
+Campos y datos de ejemplo:
+- identifier (str): "Suite 4B" -> Nombre o número visual de la propiedad.
+- unit_type (str): "Oficina" -> Tipo de propiedad (Departamento, Casa, Local, Oficina).
+- alicuota (float): 4.75 -> Porcentaje de participación sobre el total del condominio. Define cuánto paga de expensas.
+- is_occupied (bool): True -> Si la unidad está siendo habitada o en uso.
+- owner_id (int): 2 -> Clave foránea (ID de la tabla persons) que indica quién es el dueño.
+- tenant_id (int): Ninguno (Null) -> Clave foránea que indica quién arrienda (en caso de haber).
+
+4. CUOTAS / EXPENSAS (Tabla: quotas)
+Propósito: Registrar las obligaciones financieras generadas para cada unidad.
+Campos y datos de ejemplo:
+- unit_id (int): 3 -> Clave foránea apuntando a la unidad a la que se le cobra (ej. Suite 4B).
+- issue_date (date): "2026-05-01" -> Fecha en que se emitió el cobro.
+- due_date (date): "2026-05-15" -> Fecha máxima de pago antes de considerar mora.
+- amount (float): 125.50 -> Valor total a pagar en dólares/moneda local.
+- quota_type (str): "Extraordinaria" -> Si es una cuota normal o por un evento especial (ej. pintura de fachada).
+- is_paid (bool): False -> Indica si la cuota ya fue cancelada.
+- description (str): "Cuota extra para impermeabilización de terrazas." -> Detalle del cobro.
+
+5. PAGOS (Tabla: payments)
+Propósito: Registrar cuando una cuota es cancelada.
+Campos y datos de ejemplo:
+- quota_id (int): 8 -> Clave foránea apuntando a la cuota que se está pagando.
+- payment_date (date): "2026-05-12" -> Fecha exacta en la que el residente realizó el pago.
+- amount_paid (float): 125.50 -> Cantidad de dinero abonada.
+- payment_method (str): "Cheque" -> Forma de pago (Efectivo, Transferencia, Cheque).
+- reference (str): "CHQ-005691-BANCOPICHINCHA" -> Código de transacción o número de cheque.
+
+6. PROVEEDORES (Tabla: providers)
+Propósito: Mantener una agenda de empresas que prestan servicios al edificio.
+Campos y datos de ejemplo:
+- ruc (str): "1791234567001" -> Registro Único de Contribuyentes o identificación fiscal.
+- name (str): "Elevadores Andinos S.A." -> Nombre de la empresa o proveedor.
+- phone (str): "02-245-6789" -> Teléfono de la empresa.
+- email (str): "soporte@elevadoresandinos.com" -> Correo de contacto técnico o de cobros.
+
+7. EGRESOS / GASTOS (Tabla: expenses)
+Propósito: Registrar la salida de dinero del condominio para pagar servicios.
+Campos y datos de ejemplo:
+- date (date): "2026-05-14" -> Fecha en la que se realizó el gasto o se emitió la factura.
+- amount (float): 350.00 -> Dinero pagado.
+- category (str): "Mantenimiento Preventivo" -> Clasificación contable del gasto.
+- description (str): "Mantenimiento mensual de los dos ascensores torre A." -> Detalle exacto.
+- provider_id (int): 5 -> Clave foránea del proveedor (Elevadores Andinos S.A.) que hizo el trabajo.
+
+8. TICKETS DE MANTENIMIENTO (Tabla: maintenance)
+Propósito: Llevar bitácora de novedades estructurales o quejas de los residentes.
+Campos y datos de ejemplo:
+- report_date (date): "2026-05-10" -> Fecha en la que se reportó el daño.
+- description (str): "Filtración de agua en el techo del parqueadero subterráneo." -> Problema a resolver.
+- status (str): "En Proceso" -> Estado de atención del ticket (Pendiente, En Proceso, Finalizado).
+- unit_id (int): Ninguno (Null) -> ID de la unidad si el daño es interno. Null si es un Área Común.
+- cost (float): 0.0 -> Costo de reparación. Si sigue en proceso puede ser 0, luego se actualiza al finalizar.

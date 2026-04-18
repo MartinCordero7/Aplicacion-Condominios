@@ -1,0 +1,196 @@
+/*
+Premium Dark Theme Palette
+Background: #1a1b26 (Deep Dark Blue)
+Sidebar: #16161e
+Accent: #7aa2f7 (Soft Blue)
+Success: #9ece6a (Soft Green)
+Danger: #f7768e (Soft Red)
+Text: #c0caf5
+Borders: #292e42
+*/
+
+QMainWindow, QWidget, QStackedWidget {
+    background-color: #1a1b26;
+    color: #c0caf5;
+    font-family: "Segoe UI", "Roboto", "Inter", sans-serif;
+    font-size: 13px;
+}
+
+/* Labels */
+QLabel {
+    color: #c0caf5;
+}
+QLabel#ViewTitle {
+    font-size: 22px;
+    font-weight: bold;
+    color: #7aa2f7;
+    margin-bottom: 15px;
+}
+QLabel#FormTitle {
+    font-size: 16px;
+    font-weight: bold;
+    color: #7aa2f7;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #292e42;
+    padding-bottom: 5px;
+}
+QLabel#LoginTitle {
+    font-size: 24px;
+    font-weight: bold;
+    color: #7aa2f7;
+    margin-bottom: 20px;
+}
+QLabel#WelcomeTitle {
+    font-size: 28px;
+    font-weight: normal;
+    color: #a9b1d6;
+}
+QLabel#SidebarMenuTitle {
+    font-weight: bold;
+    padding: 15px 10px;
+    font-size: 12px;
+    color: #565f89;
+    letter-spacing: 1px;
+}
+
+/* Sidebar */
+QWidget#Sidebar {
+    background-color: #16161e;
+    border-right: 1px solid #292e42;
+}
+
+/* Sidebar Buttons */
+QPushButton#SidebarBtn {
+    background-color: transparent;
+    color: #c0caf5;
+    text-align: left;
+    padding: 12px 15px;
+    border: none;
+    font-size: 14px;
+    border-left: 3px solid transparent;
+}
+QPushButton#SidebarBtn:hover {
+    background-color: #1f2335;
+    color: #7aa2f7;
+    border-left: 3px solid #7aa2f7;
+}
+
+/* Inputs */
+QLineEdit, QComboBox, QDateEdit {
+    background-color: #1f2335;
+    color: #c0caf5;
+    border: 1px solid #292e42;
+    border-radius: 6px;
+    padding: 8px 12px;
+    selection-background-color: #7aa2f7;
+    selection-color: #1a1b26;
+}
+QLineEdit:focus, QComboBox:focus, QDateEdit:focus {
+    border: 1px solid #7aa2f7;
+}
+QComboBox::drop-down {
+    border: none;
+    width: 20px;
+}
+QComboBox QAbstractItemView {
+    background-color: #1f2335;
+    color: #c0caf5;
+    selection-background-color: #292e42;
+    border: 1px solid #292e42;
+    outline: none;
+}
+
+/* Buttons */
+QPushButton {
+    background-color: #292e42;
+    color: #c0caf5;
+    border: 1px solid #3b4261;
+    border-radius: 6px;
+    padding: 10px 15px;
+    font-weight: bold;
+    font-size: 13px;
+}
+QPushButton:hover {
+    background-color: #3b4261;
+    border: 1px solid #7aa2f7;
+}
+QPushButton:pressed {
+    background-color: #7aa2f7;
+    color: #1a1b26;
+}
+
+/* Specific Buttons */
+QPushButton#PrimaryBtn {
+    background-color: #7aa2f7;
+    color: #1a1b26;
+    border: none;
+}
+QPushButton#PrimaryBtn:hover {
+    background-color: #8db3f8;
+}
+
+QPushButton#SuccessBtn {
+    background-color: #9ece6a;
+    color: #1a1b26;
+    border: none;
+}
+QPushButton#SuccessBtn:hover {
+    background-color: #b1d981;
+}
+
+/* Table */
+QTableWidget {
+    background-color: #16161e;
+    color: #c0caf5;
+    gridline-color: #292e42;
+    border: 1px solid #292e42;
+    border-radius: 8px;
+    selection-background-color: #292e42;
+    selection-color: #7aa2f7;
+    alternate-background-color: #1a1b26;
+    outline: none;
+}
+QTableWidget::item {
+    padding: 5px;
+}
+QHeaderView::section {
+    background-color: #1f2335;
+    color: #7aa2f7;
+    padding: 10px;
+    border: none;
+    border-bottom: 1px solid #292e42;
+    border-right: 1px solid #292e42;
+    font-weight: bold;
+    font-size: 13px;
+}
+
+/* Scrollbars */
+QScrollBar:vertical {
+    border: none;
+    background: #1a1b26;
+    width: 12px;
+    margin: 0px 0px 0px 0px;
+}
+QScrollBar::handle:vertical {
+    background: #3b4261;
+    min-height: 20px;
+    border-radius: 6px;
+    margin: 2px;
+}
+QScrollBar::handle:vertical:hover {
+    background: #7aa2f7;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+
+/* QMessageBox */
+QMessageBox {
+    background-color: #16161e;
+}
+QMessageBox QLabel {
+    color: #c0caf5;
+}
+QMessageBox QPushButton {
+    min-width: 80px;
+}
