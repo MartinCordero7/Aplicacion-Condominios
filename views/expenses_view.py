@@ -114,16 +114,16 @@ class ExpensesView(QWidget):
             self.table_exp.setItem(i, 4, QTableWidgetItem(e.description))
 
     def add_provider(self):
-        name = self.prov_name.text()
+        name = self.prov_name.text().strip()
         if not name:
             QMessageBox.warning(self, "Error", "El nombre es obligatorio")
             return
         try:
             self.controller.add_provider(
-                self.prov_ruc.text(),
+                self.prov_ruc.text().strip(),
                 name,
-                self.prov_phone.text(),
-                self.prov_email.text()
+                self.prov_phone.text().strip(),
+                self.prov_email.text().strip()
             )
             self.load_data()
             self.prov_name.clear(); self.prov_ruc.clear(); self.prov_phone.clear(); self.prov_email.clear()
@@ -132,18 +132,25 @@ class ExpensesView(QWidget):
             QMessageBox.warning(self, "Error", str(e))
 
     def add_expense(self):
-        amount_str = self.exp_amount.text()
+        amount_str = self.exp_amount.text().strip()
         if not amount_str:
             return
         try:
+            amount = float(amount_str)
+            if amount <= 0:
+                QMessageBox.warning(self, "Error", "El monto del egreso debe ser mayor a cero.")
+                return
+
             self.controller.add_expense(
-                float(amount_str),
+                amount,
                 self.exp_cat.currentText(),
-                self.exp_desc.text(),
+                self.exp_desc.text().strip(),
                 self.exp_prov.currentData()
             )
             self.load_data()
             self.exp_amount.clear(); self.exp_desc.clear()
             QMessageBox.information(self, "Éxito", "Egreso registrado")
+        except ValueError as ve:
+            QMessageBox.warning(self, "Error", str(ve))
         except Exception as e:
             QMessageBox.warning(self, "Error", str(e))

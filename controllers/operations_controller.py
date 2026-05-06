@@ -49,9 +49,10 @@ class OperationsController:
 
     def update_maintenance_status(self, maint_id, status, cost=0.0):
         maint = self.session.query(Maintenance).filter_by(id=maint_id).first()
-        if maint:
-            maint.status = status
-            if cost > 0:
-                maint.cost = cost
-            self.session.commit()
+        if not maint:
+            raise ValueError("Ticket de mantenimiento no encontrado.")
+        maint.status = status
+        if cost > 0:
+            maint.cost = cost
+        self.session.commit()
         return maint

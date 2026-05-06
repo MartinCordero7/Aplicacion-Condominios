@@ -2,7 +2,6 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                              QLabel, QMessageBox, QFileDialog)
 from controllers.finance_controller import FinanceController
 from controllers.operations_controller import OperationsController
-import pandas as pd
 import os
 
 class ReportsView(QWidget):
@@ -40,6 +39,12 @@ class ReportsView(QWidget):
         layout.addStretch()
 
     def export_quotas(self):
+        try:
+            import pandas as pd
+        except ImportError:
+            QMessageBox.warning(self, "Dependencia Faltante", "La librería 'pandas' no está instalada. Ejecute 'pip install pandas' para habilitar los reportes.")
+            return
+
         path, _ = QFileDialog.getSaveFileName(self, "Guardar Reporte", "Cuotas.xlsx", "Excel Files (*.xlsx)")
         if not path:
             return
@@ -59,6 +64,12 @@ class ReportsView(QWidget):
             QMessageBox.warning(self, "Error", f"Fallo al exportar: {e}")
 
     def export_expenses(self):
+        try:
+            import pandas as pd
+        except ImportError:
+            QMessageBox.warning(self, "Dependencia Faltante", "La librería 'pandas' no está instalada. Ejecute 'pip install pandas' para habilitar los reportes.")
+            return
+
         path, _ = QFileDialog.getSaveFileName(self, "Guardar Reporte", "Egresos.xlsx", "Excel Files (*.xlsx)")
         if not path:
             return

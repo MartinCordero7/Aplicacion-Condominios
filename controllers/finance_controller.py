@@ -12,6 +12,11 @@ class FinanceController:
         return self.session.query(Quota).all()
 
     def generate_monthly_quotas(self, amount_per_alicuota, due_date):
+        desc = f"Cuota Mensual {datetime.date.today().strftime('%Y-%m')}"
+        existing = self.session.query(Quota).filter_by(description=desc).first()
+        if existing:
+            raise ValueError("Las cuotas mensuales ya fueron generadas para este mes.")
+        
         units = self.session.query(Unit).all()
         generated = 0
         for unit in units:
@@ -22,7 +27,7 @@ class FinanceController:
                     due_date=due_date,
                     amount=amount,
                     quota_type="Ordinaria",
-                    description=f"Cuota Mensual {datetime.date.today().strftime('%Y-%m')}"
+                    description=desc
                 )
                 self.session.add(quota)
                 generated += 1
@@ -43,15 +48,18 @@ class FinanceController:
 
     def pay_quota(self, quota_id, amount_paid, payment_method, reference):
         quota = self.session.query(Quota).filter_by(id=quota_id).first()
-        if quota:
-            payment = Payment(
-                quota_id=quota.id,
-                amount_paid=amount_paid,
-                payment_method=payment_method,
-                reference=reference
-            )
-            quota.is_paid = True 
-            self.session.add(payment)
-            self.session.commit()
-            return payment
-        return None
+        if not quota:
+            raise ValueError("Cuota no encontrada.")
+        if quota.is_paid:
+            raise ValueError("La cuota ya ha sido pagada.")
+        
+        payment = Payment(
+            quota_id=quota.id,
+            amount_paid=amount_paid,
+            payment_method=payment_method,
+            reference=reference
+        )
+        quota.is_paid = True 
+        self.session.add(payment)
+        self.session.commit()
+        return payment

@@ -136,15 +136,22 @@ class UnitsView(QWidget):
                 return
 
     def save_unit(self):
-        if not self.identifier_input.text():
+        identifier = self.identifier_input.text().strip()
+        if not identifier:
             QMessageBox.warning(self, "Error", "El identificador es obligatorio")
             return
         
         try:
+            alicuota_str = self.alicuota_input.text().strip()
+            alicuota = float(alicuota_str) if alicuota_str else 0.0
+            if alicuota < 0:
+                QMessageBox.warning(self, "Error", "La alícuota no puede ser negativa.")
+                return
+
             self.controller.add_unit(
-                self.identifier_input.text(),
+                identifier,
                 self.type_combo.currentText(),
-                float(self.alicuota_input.text() or 0.0),
+                alicuota,
                 self.owner_combo.currentData(),
                 self.tenant_combo.currentData()
             )
@@ -155,17 +162,28 @@ class UnitsView(QWidget):
             QMessageBox.warning(self, "Error", f"Error al guardar: {e}")
 
     def update_unit(self):
-        unit_id = self.id_input.text()
+        unit_id = self.id_input.text().strip()
         if not unit_id:
             QMessageBox.warning(self, "Error", "Seleccione una unidad para actualizar")
             return
 
+        identifier = self.identifier_input.text().strip()
+        if not identifier:
+            QMessageBox.warning(self, "Error", "El identificador es obligatorio")
+            return
+
         try:
+            alicuota_str = self.alicuota_input.text().strip()
+            alicuota = float(alicuota_str) if alicuota_str else 0.0
+            if alicuota < 0:
+                QMessageBox.warning(self, "Error", "La alícuota no puede ser negativa.")
+                return
+
             self.controller.update_unit(
                 int(unit_id),
-                self.identifier_input.text(),
+                identifier,
                 self.type_combo.currentText(),
-                float(self.alicuota_input.text() or 0.0),
+                alicuota,
                 self.owner_combo.currentData(),
                 self.tenant_combo.currentData()
             )
@@ -175,7 +193,7 @@ class UnitsView(QWidget):
             QMessageBox.warning(self, "Error", f"Error al actualizar: {e}")
 
     def delete_unit(self):
-        unit_id = self.id_input.text()
+        unit_id = self.id_input.text().strip()
         if not unit_id:
             return
             
@@ -183,12 +201,17 @@ class UnitsView(QWidget):
                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         
         if reply == QMessageBox.StandardButton.Yes:
-            if self.controller.delete_unit(int(unit_id)):
-                self.load_data()
-                self.clear_form()
-                QMessageBox.information(self, "Éxito", "Unidad eliminada")
-            else:
-                QMessageBox.warning(self, "Error", "No se pudo eliminar")
+            try:
+                if self.controller.delete_unit(int(unit_id)):
+                    self.load_data()
+                    self.clear_form()
+                    QMessageBox.information(self, "Éxito", "Unidad eliminada")
+                else:
+                    QMessageBox.warning(self, "Error", "No se pudo eliminar")
+            except ValueError as ve:
+                QMessageBox.warning(self, "Error", str(ve))
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Error inesperado: {e}")
 
     def clear_form(self):
         self.id_input.clear()

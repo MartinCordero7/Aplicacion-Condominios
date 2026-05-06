@@ -1,5 +1,6 @@
 from database.connection import get_session
 from models.property import Unit, Person
+from models.finance import Quota, Maintenance
 
 class PropertyController:
     def __init__(self):
@@ -28,6 +29,8 @@ class PropertyController:
     def delete_person(self, person_id):
         person = self.session.query(Person).filter_by(id=person_id).first()
         if person:
+            if person.owned_units or person.rented_units:
+                raise ValueError("No se puede eliminar la persona porque tiene unidades asociadas.")
             self.session.delete(person)
             self.session.commit()
             return True
@@ -65,6 +68,10 @@ class PropertyController:
     def delete_unit(self, unit_id):
         unit = self.session.query(Unit).filter_by(id=unit_id).first()
         if unit:
+            quotas = self.session.query(Quota).filter_by(unit_id=unit_id).first()
+            maint = self.session.query(Maintenance).filter_by(unit_id=unit_id).first()
+            if quotas or maint:
+                raise ValueError("No se puede eliminar la unidad porque tiene cuotas o tickets de mantenimiento asociados.")
             self.session.delete(unit)
             self.session.commit()
             return True

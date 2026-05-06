@@ -3,6 +3,7 @@ from database.connection import get_session, init_db
 from models.user import User
 from models.property import Person, Unit
 from models.finance import Quota, Payment, Provider, Expense, Maintenance
+import hashlib
 
 def seed():
     session = get_session()
@@ -14,7 +15,8 @@ def seed():
 
     # 1. Insert 5 Users
     for i in range(1, 6):
-        user = User(username=f"user{i}", password_hash="pass123", full_name=f"Usuario Operativo {i}", role="Operativo")
+        hashed_pw = hashlib.sha256("pass123".encode()).hexdigest()
+        user = User(username=f"user{i}", password_hash=hashed_pw, full_name=f"Usuario Operativo {i}", role="Operativo")
         session.add(user)
 
     # 2. Insert 5 Persons (Propietarios/Inquilinos)

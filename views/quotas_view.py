@@ -145,33 +145,46 @@ class QuotasView(QWidget):
                 self.btn_pay.setText("Registrar Pago")
 
     def generate_quotas(self):
-        base_amt_str = self.base_amount_input.text()
+        base_amt_str = self.base_amount_input.text().strip()
         if not base_amt_str:
             QMessageBox.warning(self, "Error", "Ingrese un monto base por alícuota")
             return
             
         try:
             base_amt = float(base_amt_str)
+            if base_amt <= 0:
+                QMessageBox.warning(self, "Error", "El monto base debe ser mayor a cero.")
+                return
+                
             due_date = datetime.date.today() + datetime.timedelta(days=15)
             count = self.finance_controller.generate_monthly_quotas(base_amt, due_date)
             self.load_data()
             QMessageBox.information(self, "Éxito", f"Se generaron {count} cuotas mensuales.")
+        except ValueError as ve:
+            QMessageBox.warning(self, "Error", str(ve))
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Error al generar cuotas: {e}")
 
     def add_single_quota(self):
         unit_id = self.unit_combo.currentData()
-        if not unit_id or not self.amount_input.text():
+        amount_str = self.amount_input.text().strip()
+        
+        if not unit_id or not amount_str:
             return
             
         try:
+            amount = float(amount_str)
+            if amount <= 0:
+                QMessageBox.warning(self, "Error", "El monto de la cuota debe ser mayor a cero.")
+                return
+                
             due_date = self.due_date_input.date().toPyDate()
             self.finance_controller.add_quota(
                 unit_id,
                 due_date,
-                float(self.amount_input.text()),
+                amount,
                 self.type_combo.currentText(),
-                self.desc_input.text()
+                self.desc_input.text().strip()
             )
             self.load_data()
             self.amount_input.clear()
@@ -181,7 +194,7 @@ class QuotasView(QWidget):
             QMessageBox.warning(self, "Error", f"Error: {e}")
 
     def pay_quota(self):
-        quota_id = self.pay_quota_id.text()
+        quota_id = self.pay_quota_id.text().strip()
         if not quota_id:
             return
             
@@ -194,11 +207,13 @@ class QuotasView(QWidget):
                 int(quota_id),
                 amount,
                 self.pay_method.currentText(),
-                self.pay_ref.text()
+                self.pay_ref.text().strip()
             )
             self.load_data()
             self.pay_quota_id.clear()
             self.pay_ref.clear()
             QMessageBox.information(self, "Éxito", "Pago registrado correctamente")
+        except ValueError as ve:
+            QMessageBox.warning(self, "Error", str(ve))
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Error al registrar pago: {e}")

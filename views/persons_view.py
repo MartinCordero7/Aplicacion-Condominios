@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                              QFormLayout, QMessageBox, QHeaderView)
 from PyQt6.QtCore import Qt
 from controllers.property_controller import PropertyController
+import re
 
 class PersonsView(QWidget):
     def __init__(self):
@@ -103,17 +104,29 @@ class PersonsView(QWidget):
             self.email_input.setText(self.table.item(row, 4).text())
 
     def save_person(self):
-        if not self.cedula_input.text() or not self.name_input.text():
+        cedula = self.cedula_input.text().strip()
+        name = self.name_input.text().strip()
+        phone = self.phone_input.text().strip()
+        email = self.email_input.text().strip()
+
+        if not cedula or not name:
             QMessageBox.warning(self, "Error", "Cédula y Nombre son obligatorios")
+            return
+            
+        if not re.match(r'^\d{10}$', cedula):
+            QMessageBox.warning(self, "Error", "La cédula debe tener exactamente 10 dígitos numéricos.")
+            return
+            
+        if phone and not re.match(r'^\d{9,10}$', phone):
+            QMessageBox.warning(self, "Error", "El teléfono debe tener entre 9 y 10 dígitos numéricos.")
+            return
+            
+        if email and not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email):
+            QMessageBox.warning(self, "Error", "El formato del correo es inválido.")
             return
         
         try:
-            self.controller.add_person(
-                self.cedula_input.text(),
-                self.name_input.text(),
-                self.phone_input.text(),
-                self.email_input.text()
-            )
+            self.controller.add_person(cedula, name, phone, email)
             self.load_data()
             self.clear_form()
             QMessageBox.information(self, "Éxito", "Persona agregada correctamente")
@@ -121,19 +134,34 @@ class PersonsView(QWidget):
             QMessageBox.warning(self, "Error", f"Error al guardar: {e}")
 
     def update_person(self):
-        person_id = self.id_input.text()
+        person_id = self.id_input.text().strip()
         if not person_id:
             QMessageBox.warning(self, "Error", "Seleccione una persona para actualizar")
             return
 
+        cedula = self.cedula_input.text().strip()
+        name = self.name_input.text().strip()
+        phone = self.phone_input.text().strip()
+        email = self.email_input.text().strip()
+
+        if not cedula or not name:
+            QMessageBox.warning(self, "Error", "Cédula y Nombre son obligatorios")
+            return
+
+        if not re.match(r'^\d{10}$', cedula):
+            QMessageBox.warning(self, "Error", "La cédula debe tener exactamente 10 dígitos numéricos.")
+            return
+            
+        if phone and not re.match(r'^\d{9,10}$', phone):
+            QMessageBox.warning(self, "Error", "El teléfono debe tener entre 9 y 10 dígitos numéricos.")
+            return
+            
+        if email and not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email):
+            QMessageBox.warning(self, "Error", "El formato del correo es inválido.")
+            return
+
         try:
-            self.controller.update_person(
-                int(person_id),
-                self.cedula_input.text(),
-                self.name_input.text(),
-                self.phone_input.text(),
-                self.email_input.text()
-            )
+            self.controller.update_person(int(person_id), cedula, name, phone, email)
             self.load_data()
             QMessageBox.information(self, "Éxito", "Persona actualizada")
         except Exception as e:

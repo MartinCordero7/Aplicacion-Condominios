@@ -110,11 +110,12 @@ class MaintenanceView(QWidget):
             self.status_combo.setCurrentText(self.table.item(row, 5).text())
 
     def add_maintenance(self):
-        if not self.desc_input.text():
+        desc = self.desc_input.text().strip()
+        if not desc:
             return
         try:
             self.op_controller.add_maintenance(
-                self.desc_input.text(),
+                desc,
                 self.unit_combo.currentData()
             )
             self.load_data()
@@ -124,11 +125,17 @@ class MaintenanceView(QWidget):
             QMessageBox.warning(self, "Error", str(e))
 
     def update_status(self):
-        maint_id = self.maint_id_input.text()
+        maint_id = self.maint_id_input.text().strip()
         if not maint_id:
             return
-        cost = float(self.cost_input.text()) if self.cost_input.text() else 0.0
+            
+        cost_str = self.cost_input.text().strip()
         try:
+            cost = float(cost_str) if cost_str else 0.0
+            if cost < 0:
+                QMessageBox.warning(self, "Error", "El costo no puede ser negativo.")
+                return
+                
             self.op_controller.update_maintenance_status(
                 int(maint_id),
                 self.status_combo.currentText(),
@@ -137,5 +144,7 @@ class MaintenanceView(QWidget):
             self.load_data()
             self.maint_id_input.clear(); self.cost_input.clear()
             QMessageBox.information(self, "Éxito", "Estado actualizado")
+        except ValueError as ve:
+            QMessageBox.warning(self, "Error", str(ve))
         except Exception as e:
             QMessageBox.warning(self, "Error", str(e))
