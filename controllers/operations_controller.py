@@ -1,5 +1,6 @@
 from controllers.base_controller import BaseController
 from models.finance import Expense, Provider, Maintenance
+from validators import validate_phone, validate_email, validate_ruc
 import datetime
 
 
@@ -10,13 +11,17 @@ class OperationsController(BaseController):
         return self.session.query(Provider).all()
 
     def add_provider(self, ruc, name, phone, email):
-        # B-4: sanear todos los campos de texto
-        provider = Provider(
-            ruc=ruc.strip() if ruc else "",
-            name=name.strip(),
-            phone=phone.strip() if phone else "",
-            email=email.strip() if email else ""
-        )
+        # B-4: sanear; B-8: validar formato de RUC, teléfono y correo
+        ruc   = ruc.strip()   if ruc   else ""
+        name  = name.strip()
+        phone = phone.strip() if phone else ""
+        email = email.strip() if email else ""
+
+        validate_ruc(ruc)
+        validate_phone(phone)
+        validate_email(email)
+
+        provider = Provider(ruc=ruc, name=name, phone=phone, email=email)
         self.session.add(provider)
         self.session.commit()
         return provider

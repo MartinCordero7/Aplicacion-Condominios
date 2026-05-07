@@ -3,7 +3,6 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
 from PyQt6.QtCore import Qt
 from controllers.property_controller import PropertyController
 from views.utils import create_table, populate_table
-import re
 
 
 class PersonsView(QWidget):
@@ -96,22 +95,6 @@ class PersonsView(QWidget):
             self.phone_input.setText(self.table.item(row, 3).text())
             self.email_input.setText(self.table.item(row, 4).text())
 
-    # ------------------------------------------------------------------ #
-    #  Validación centralizada (antes duplicada en save y update)          #
-    # ------------------------------------------------------------------ #
-    def _validate_person_inputs(self, cedula: str, phone: str, email: str) -> bool:
-        """Valida los campos de persona. Muestra advertencia y retorna False si falla."""
-        if not re.match(r'^\d{10}$', cedula):
-            QMessageBox.warning(self, "Error", "La cédula debe tener exactamente 10 dígitos numéricos.")
-            return False
-        if phone and not re.match(r'^\d{9,10}$', phone):
-            QMessageBox.warning(self, "Error", "El teléfono debe tener entre 9 y 10 dígitos numéricos.")
-            return False
-        if email and not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email):
-            QMessageBox.warning(self, "Error", "El formato del correo es inválido.")
-            return False
-        return True
-
     def save_person(self):
         cedula = self.cedula_input.text().strip()
         name = self.name_input.text().strip()
@@ -120,9 +103,6 @@ class PersonsView(QWidget):
 
         if not cedula or not name:
             QMessageBox.warning(self, "Error", "Cédula y Nombre son obligatorios")
-            return
-
-        if not self._validate_person_inputs(cedula, phone, email):
             return
 
         try:
@@ -146,9 +126,6 @@ class PersonsView(QWidget):
 
         if not cedula or not name:
             QMessageBox.warning(self, "Error", "Cédula y Nombre son obligatorios")
-            return
-
-        if not self._validate_person_inputs(cedula, phone, email):
             return
 
         try:

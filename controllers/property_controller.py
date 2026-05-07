@@ -1,6 +1,7 @@
 from controllers.base_controller import BaseController
 from models.property import Unit, Person
 from models.finance import Quota, Maintenance
+from validators import validate_cedula, validate_phone, validate_email
 
 
 class PropertyController(BaseController):
@@ -10,25 +11,38 @@ class PropertyController(BaseController):
         return self.session.query(Person).all()
 
     def add_person(self, cedula, name, phone, email):
-        # B-4: sanear todos los campos de texto en el controller
-        person = Person(
-            cedula=cedula.strip(),
-            name=name.strip(),
-            phone=phone.strip() if phone else "",
-            email=email.strip() if email else ""
-        )
+        # B-4: sanear; B-8: validar formato
+        cedula = cedula.strip()
+        name = name.strip()
+        phone = phone.strip() if phone else ""
+        email = email.strip() if email else ""
+
+        validate_cedula(cedula)
+        validate_phone(phone)
+        validate_email(email)
+
+        person = Person(cedula=cedula, name=name, phone=phone, email=email)
         self.session.add(person)
         self.session.commit()
         return person
 
     def update_person(self, person_id, cedula, name, phone, email):
+        # B-4: sanear; B-8: validar formato
+        cedula = cedula.strip()
+        name = name.strip()
+        phone = phone.strip() if phone else ""
+        email = email.strip() if email else ""
+
+        validate_cedula(cedula)
+        validate_phone(phone)
+        validate_email(email)
+
         person = self.session.query(Person).filter_by(id=person_id).first()
         if person:
-            # B-4: sanear todos los campos de texto
-            person.cedula = cedula.strip()
-            person.name = name.strip()
-            person.phone = phone.strip() if phone else ""
-            person.email = email.strip() if email else ""
+            person.cedula = cedula
+            person.name = name
+            person.phone = phone
+            person.email = email
             self.session.commit()
         return person
 
