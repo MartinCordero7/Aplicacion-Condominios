@@ -4,6 +4,9 @@ from controllers.operations_controller import OperationsController
 from controllers.property_controller import PropertyController
 from views.utils import create_table, populate_table
 
+# Etiqueta para unidades sin asignación específica (áreas de uso común)
+COMMON_AREA = "Área Común"
+
 
 class MaintenanceView(QWidget):
     def __init__(self):
@@ -87,7 +90,7 @@ class MaintenanceView(QWidget):
             [
                 str(t.id),
                 t.report_date.strftime("%Y-%m-%d"),
-                units.get(t.unit_id, "Área Común") if t.unit_id else "Área Común",
+                units.get(t.unit_id, COMMON_AREA) if t.unit_id else COMMON_AREA,
                 t.description,
                 f"${t.cost:.2f}",
                 t.status,
@@ -96,7 +99,7 @@ class MaintenanceView(QWidget):
         ])
 
         self.unit_combo.clear()
-        self.unit_combo.addItem("Área Común", None)
+        self.unit_combo.addItem(COMMON_AREA, None)
         for u_id, u_ident in units.items():
             self.unit_combo.addItem(u_ident, u_id)
 
