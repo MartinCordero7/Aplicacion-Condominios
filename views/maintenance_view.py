@@ -1,8 +1,9 @@
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
-                             QTableWidget, QTableWidgetItem, QLabel, QLineEdit, 
-                             QFormLayout, QMessageBox, QHeaderView, QComboBox)
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
+                             QLabel, QLineEdit, QFormLayout, QMessageBox, QComboBox)
 from controllers.operations_controller import OperationsController
 from controllers.property_controller import PropertyController
+from views.utils import create_table, populate_table
+
 
 class MaintenanceView(QWidget):
     def __init__(self):
@@ -18,16 +19,12 @@ class MaintenanceView(QWidget):
         # Left panel: Table
         left_panel = QWidget()
         left_layout = QVBoxLayout(left_panel)
-        
+
         title = QLabel("Tickets de Mantenimiento")
         title.setObjectName("ViewTitle")
         left_layout.addWidget(title)
 
-        self.table = QTableWidget()
-        self.table.setColumnCount(6)
-        self.table.setHorizontalHeaderLabels(["ID", "Fecha", "Unidad", "Descripción", "Costo", "Estado"])
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table = create_table(["ID", "Fecha", "Unidad", "Descripción", "Costo", "Estado"])
         self.table.itemSelectionChanged.connect(self.on_select)
         left_layout.addWidget(self.table)
 
@@ -35,7 +32,7 @@ class MaintenanceView(QWidget):
         right_panel = QWidget()
         right_panel.setFixedWidth(300)
         right_layout = QVBoxLayout(right_panel)
-        
+
         form_title = QLabel("Nuevo Ticket")
         form_title.setObjectName("FormTitle")
         right_layout.addWidget(form_title)
@@ -43,7 +40,7 @@ class MaintenanceView(QWidget):
         form_layout = QFormLayout()
         self.unit_combo = QComboBox()
         self.desc_input = QLineEdit()
-        
+
         form_layout.addRow("Unidad:", self.unit_combo)
         form_layout.addRow("Desc:", self.desc_input)
         right_layout.addLayout(form_layout)
@@ -52,13 +49,13 @@ class MaintenanceView(QWidget):
         self.btn_save.setObjectName("PrimaryBtn")
         self.btn_save.clicked.connect(self.add_maintenance)
         right_layout.addWidget(self.btn_save)
-        
+
         right_layout.addSpacing(20)
-        
+
         update_title = QLabel("Actualizar Estado")
         update_title.setObjectName("FormTitle")
         right_layout.addWidget(update_title)
-        
+
         update_form = QFormLayout()
         self.maint_id_input = QLineEdit()
         self.maint_id_input.setReadOnly(True)
@@ -66,7 +63,7 @@ class MaintenanceView(QWidget):
         self.status_combo.addItems(["Pendiente", "En Proceso", "Finalizado"])
         self.cost_input = QLineEdit()
         self.cost_input.setPlaceholderText("Costo final (opcional)")
-        
+
         update_form.addRow("ID Ticket:", self.maint_id_input)
         update_form.addRow("Estado:", self.status_combo)
         update_form.addRow("Costo ($):", self.cost_input)
@@ -83,20 +80,21 @@ class MaintenanceView(QWidget):
         layout.addWidget(right_panel)
 
     def load_data(self):
-        self.table.setRowCount(0)
         tickets = self.op_controller.get_all_maintenance()
         units = {u.id: u.identifier for u in self.prop_controller.get_all_units()}
-        
-        for i, t in enumerate(tickets):
-            self.table.insertRow(i)
-            self.table.setItem(i, 0, QTableWidgetItem(str(t.id)))
-            self.table.setItem(i, 1, QTableWidgetItem(t.report_date.strftime("%Y-%m-%d")))
-            unit_name = units.get(t.unit_id, "Área Común") if t.unit_id else "Área Común"
-            self.table.setItem(i, 2, QTableWidgetItem(unit_name))
-            self.table.setItem(i, 3, QTableWidgetItem(t.description))
-            self.table.setItem(i, 4, QTableWidgetItem(f"${t.cost:.2f}"))
-            self.table.setItem(i, 5, QTableWidgetItem(t.status))
-            
+
+        populate_table(self.table, [
+            [
+                str(t.id),
+                t.report_date.strftime("%Y-%m-%d"),
+                units.get(t.unit_id, "Área Común") if t.unit_id else "Área Común",
+                t.description,
+                f"${t.cost:.2f}",
+                t.status,
+            ]
+            for t in tickets
+        ])
+
         self.unit_combo.clear()
         self.unit_combo.addItem("Área Común", None)
         for u_id, u_ident in units.items():
@@ -114,10 +112,7 @@ class MaintenanceView(QWidget):
         if not desc:
             return
         try:
-            self.op_controller.add_maintenance(
-                desc,
-                self.unit_combo.currentData()
-            )
+            self.op_controller.add_maintenance(desc, self.unit_combo.currentData())
             self.load_data()
             self.desc_input.clear()
             QMessageBox.information(self, "Éxito", "Ticket creado")
@@ -128,18 +123,16 @@ class MaintenanceView(QWidget):
         maint_id = self.maint_id_input.text().strip()
         if not maint_id:
             return
-            
+
         cost_str = self.cost_input.text().strip()
         try:
             cost = float(cost_str) if cost_str else 0.0
             if cost < 0:
                 QMessageBox.warning(self, "Error", "El costo no puede ser negativo.")
                 return
-                
+
             self.op_controller.update_maintenance_status(
-                int(maint_id),
-                self.status_combo.currentText(),
-                cost
+                int(maint_id), self.status_combo.currentText(), cost
             )
             self.load_data()
             self.maint_id_input.clear(); self.cost_input.clear()

@@ -1,8 +1,9 @@
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
-                             QTableWidget, QTableWidgetItem, QLabel, QLineEdit, 
-                             QFormLayout, QMessageBox, QHeaderView, QComboBox)
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
+                             QLabel, QLineEdit, QFormLayout, QMessageBox, QComboBox)
 from PyQt6.QtCore import Qt
 from controllers.property_controller import PropertyController
+from views.utils import create_table, populate_table
+
 
 class UnitsView(QWidget):
     def __init__(self):
@@ -17,16 +18,12 @@ class UnitsView(QWidget):
         # Left panel: Table
         left_panel = QWidget()
         left_layout = QVBoxLayout(left_panel)
-        
+
         title = QLabel("Gestión de Unidades")
         title.setObjectName("ViewTitle")
         left_layout.addWidget(title)
 
-        self.table = QTableWidget()
-        self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels(["ID", "Identificador", "Tipo", "Alícuota %", "Ocupado"])
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table = create_table(["ID", "Identificador", "Tipo", "Alícuota %", "Ocupado"])
         self.table.itemSelectionChanged.connect(self.on_select)
         left_layout.addWidget(self.table)
 
@@ -34,7 +31,7 @@ class UnitsView(QWidget):
         right_panel = QWidget()
         right_panel.setFixedWidth(300)
         right_layout = QVBoxLayout(right_panel)
-        
+
         form_title = QLabel("Detalles de Unidad")
         form_title.setObjectName("FormTitle")
         right_layout.addWidget(form_title)
@@ -43,13 +40,13 @@ class UnitsView(QWidget):
         self.id_input = QLineEdit()
         self.id_input.setReadOnly(True)
         self.identifier_input = QLineEdit()
-        
+
         self.type_combo = QComboBox()
         self.type_combo.addItems(["Departamento", "Casa", "Local", "Oficina", "Otro"])
-        
+
         self.alicuota_input = QLineEdit()
         self.alicuota_input.setPlaceholderText("Ej. 2.5")
-        
+
         self.owner_combo = QComboBox()
         self.tenant_combo = QComboBox()
 
@@ -59,7 +56,7 @@ class UnitsView(QWidget):
         form_layout.addRow("Alícuota (%):", self.alicuota_input)
         form_layout.addRow("Propietario:", self.owner_combo)
         form_layout.addRow("Inquilino:", self.tenant_combo)
-        
+
         right_layout.addLayout(form_layout)
 
         # Buttons
@@ -76,7 +73,7 @@ class UnitsView(QWidget):
 
         btn_layout.addWidget(self.btn_save)
         btn_layout.addWidget(self.btn_update)
-        
+
         btn_layout2 = QHBoxLayout()
         btn_layout2.addWidget(self.btn_delete)
         btn_layout2.addWidget(self.btn_clear)
@@ -89,16 +86,11 @@ class UnitsView(QWidget):
         layout.addWidget(right_panel)
 
     def load_data(self):
-        self.table.setRowCount(0)
         units = self.controller.get_all_units()
-        for i, u in enumerate(units):
-            self.table.insertRow(i)
-            self.table.setItem(i, 0, QTableWidgetItem(str(u.id)))
-            self.table.setItem(i, 1, QTableWidgetItem(u.identifier))
-            self.table.setItem(i, 2, QTableWidgetItem(u.unit_type))
-            self.table.setItem(i, 3, QTableWidgetItem(str(u.alicuota)))
-            self.table.setItem(i, 4, QTableWidgetItem("Sí" if u.is_occupied else "No"))
-            
+        populate_table(self.table, [
+            [str(u.id), u.identifier, u.unit_type, str(u.alicuota), "Sí" if u.is_occupied else "No"]
+            for u in units
+        ])
         self.load_persons_combos()
 
     def load_persons_combos(self):
@@ -106,7 +98,7 @@ class UnitsView(QWidget):
         self.tenant_combo.clear()
         self.owner_combo.addItem("Ninguno", None)
         self.tenant_combo.addItem("Ninguno", None)
-        
+
         persons = self.controller.get_all_persons()
         for p in persons:
             self.owner_combo.addItem(f"{p.cedula} - {p.name}", p.id)
@@ -121,7 +113,7 @@ class UnitsView(QWidget):
             self.identifier_input.setText(self.table.item(row, 1).text())
             self.type_combo.setCurrentText(self.table.item(row, 2).text())
             self.alicuota_input.setText(self.table.item(row, 3).text())
-            
+
             units = self.controller.get_all_units()
             for u in units:
                 if str(u.id) == unit_id:
@@ -140,7 +132,7 @@ class UnitsView(QWidget):
         if not identifier:
             QMessageBox.warning(self, "Error", "El identificador es obligatorio")
             return
-        
+
         try:
             alicuota_str = self.alicuota_input.text().strip()
             alicuota = float(alicuota_str) if alicuota_str else 0.0
@@ -196,10 +188,10 @@ class UnitsView(QWidget):
         unit_id = self.id_input.text().strip()
         if not unit_id:
             return
-            
+
         reply = QMessageBox.question(self, 'Confirmar', '¿Seguro que desea eliminar esta unidad?',
                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        
+
         if reply == QMessageBox.StandardButton.Yes:
             try:
                 if self.controller.delete_unit(int(unit_id)):

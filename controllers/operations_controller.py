@@ -1,17 +1,22 @@
-from database.connection import get_session
+from controllers.base_controller import BaseController
 from models.finance import Expense, Provider, Maintenance
 import datetime
 
-class OperationsController:
-    def __init__(self):
-        self.session = get_session()
+
+class OperationsController(BaseController):
 
     # --- Providers ---
     def get_all_providers(self):
         return self.session.query(Provider).all()
 
     def add_provider(self, ruc, name, phone, email):
-        provider = Provider(ruc=ruc, name=name, phone=phone, email=email)
+        # B-4: sanear todos los campos de texto
+        provider = Provider(
+            ruc=ruc.strip() if ruc else "",
+            name=name.strip(),
+            phone=phone.strip() if phone else "",
+            email=email.strip() if email else ""
+        )
         self.session.add(provider)
         self.session.commit()
         return provider
@@ -21,10 +26,15 @@ class OperationsController:
         return self.session.query(Expense).all()
 
     def add_expense(self, amount, category, description, provider_id=None):
+        # B-1: validar que el monto sea positivo
+        if amount <= 0:
+            raise ValueError("El monto del egreso debe ser mayor a cero.")
+
         expense = Expense(
-            amount=amount,
-            category=category,
-            description=description,
+            amount=round(float(amount), 2),
+            category=category.strip(),
+            # B-4: sanear descripción
+            description=description.strip() if description else "",
             provider_id=provider_id,
             date=datetime.date.today()
         )
@@ -37,8 +47,13 @@ class OperationsController:
         return self.session.query(Maintenance).all()
 
     def add_maintenance(self, description, unit_id=None):
+        # B-4: sanear descripción
+        desc = description.strip() if description else ""
+        if not desc:
+            raise ValueError("La descripción del ticket no puede estar vacía.")
+
         maint = Maintenance(
-            description=description,
+            description=desc,
             unit_id=unit_id,
             status="Pendiente",
             report_date=datetime.date.today()
@@ -49,10 +64,16 @@ class OperationsController:
 
     def update_maintenance_status(self, maint_id, status, cost=0.0):
         maint = self.session.query(Maintenance).filter_by(id=maint_id).first()
+        # B-7: lanzar excepción clara si no existe
         if not maint:
             raise ValueError("Ticket de mantenimiento no encontrado.")
-        maint.status = status
+
+        # B-1: validar que el costo no sea negativo
+        if cost < 0:
+            raise ValueError("El costo del mantenimiento no puede ser negativo.")
+
+        maint.status = status.strip()
         if cost > 0:
-            maint.cost = cost
+            maint.cost = round(float(cost), 2)
         self.session.commit()
         return maint

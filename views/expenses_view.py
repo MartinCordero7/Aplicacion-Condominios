@@ -1,7 +1,8 @@
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
-                             QTableWidget, QTableWidgetItem, QLabel, QLineEdit, 
-                             QFormLayout, QMessageBox, QHeaderView, QComboBox)
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
+                             QLabel, QLineEdit, QFormLayout, QMessageBox, QComboBox)
 from controllers.operations_controller import OperationsController
+from views.utils import create_table, populate_table
+
 
 class ExpensesView(QWidget):
     def __init__(self):
@@ -22,16 +23,12 @@ class ExpensesView(QWidget):
         # Left panel: Providers
         left_panel = QWidget()
         left_layout = QVBoxLayout(left_panel)
-        
+
         lbl_prov = QLabel("Directorio de Proveedores")
         lbl_prov.setObjectName("FormTitle")
         left_layout.addWidget(lbl_prov)
 
-        self.table_prov = QTableWidget()
-        self.table_prov.setColumnCount(4)
-        self.table_prov.setHorizontalHeaderLabels(["ID", "Nombre", "RUC", "Teléfono"])
-        self.table_prov.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.table_prov.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table_prov = create_table(["ID", "Nombre", "RUC", "Teléfono"])
         left_layout.addWidget(self.table_prov)
 
         form_prov = QFormLayout()
@@ -58,11 +55,7 @@ class ExpensesView(QWidget):
         lbl_exp.setObjectName("FormTitle")
         right_layout.addWidget(lbl_exp)
 
-        self.table_exp = QTableWidget()
-        self.table_exp.setColumnCount(5)
-        self.table_exp.setHorizontalHeaderLabels(["ID", "Fecha", "Monto", "Categoría", "Descripción"])
-        self.table_exp.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.table_exp.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table_exp = create_table(["ID", "Fecha", "Monto", "Categoría", "Descripción"])
         right_layout.addWidget(self.table_exp)
 
         form_exp = QFormLayout()
@@ -71,7 +64,7 @@ class ExpensesView(QWidget):
         self.exp_cat.addItems(["Mantenimiento", "Servicios Básicos", "Sueldos", "Insumos", "Otros"])
         self.exp_desc = QLineEdit()
         self.exp_prov = QComboBox()
-        
+
         form_exp.addRow("Monto:", self.exp_amount)
         form_exp.addRow("Categoría:", self.exp_cat)
         form_exp.addRow("Descripción:", self.exp_desc)
@@ -88,30 +81,21 @@ class ExpensesView(QWidget):
         layout.addLayout(content_layout)
 
     def load_data(self):
-        # Load Providers
-        self.table_prov.setRowCount(0)
+        providers = self.controller.get_all_providers()
+        populate_table(self.table_prov, [
+            [str(p.id), p.name, p.ruc or "", p.phone or ""]
+            for p in providers
+        ])
         self.exp_prov.clear()
         self.exp_prov.addItem("Ninguno", None)
-        
-        providers = self.controller.get_all_providers()
-        for i, p in enumerate(providers):
-            self.table_prov.insertRow(i)
-            self.table_prov.setItem(i, 0, QTableWidgetItem(str(p.id)))
-            self.table_prov.setItem(i, 1, QTableWidgetItem(p.name))
-            self.table_prov.setItem(i, 2, QTableWidgetItem(p.ruc or ""))
-            self.table_prov.setItem(i, 3, QTableWidgetItem(p.phone or ""))
+        for p in providers:
             self.exp_prov.addItem(p.name, p.id)
 
-        # Load Expenses
-        self.table_exp.setRowCount(0)
         expenses = self.controller.get_all_expenses()
-        for i, e in enumerate(expenses):
-            self.table_exp.insertRow(i)
-            self.table_exp.setItem(i, 0, QTableWidgetItem(str(e.id)))
-            self.table_exp.setItem(i, 1, QTableWidgetItem(e.date.strftime("%Y-%m-%d")))
-            self.table_exp.setItem(i, 2, QTableWidgetItem(f"${e.amount:.2f}"))
-            self.table_exp.setItem(i, 3, QTableWidgetItem(e.category))
-            self.table_exp.setItem(i, 4, QTableWidgetItem(e.description))
+        populate_table(self.table_exp, [
+            [str(e.id), e.date.strftime("%Y-%m-%d"), f"${e.amount:.2f}", e.category, e.description]
+            for e in expenses
+        ])
 
     def add_provider(self):
         name = self.prov_name.text().strip()
@@ -120,13 +104,12 @@ class ExpensesView(QWidget):
             return
         try:
             self.controller.add_provider(
-                self.prov_ruc.text().strip(),
-                name,
-                self.prov_phone.text().strip(),
-                self.prov_email.text().strip()
+                self.prov_ruc.text().strip(), name,
+                self.prov_phone.text().strip(), self.prov_email.text().strip()
             )
             self.load_data()
-            self.prov_name.clear(); self.prov_ruc.clear(); self.prov_phone.clear(); self.prov_email.clear()
+            self.prov_name.clear(); self.prov_ruc.clear()
+            self.prov_phone.clear(); self.prov_email.clear()
             QMessageBox.information(self, "Éxito", "Proveedor registrado")
         except Exception as e:
             QMessageBox.warning(self, "Error", str(e))
@@ -140,12 +123,9 @@ class ExpensesView(QWidget):
             if amount <= 0:
                 QMessageBox.warning(self, "Error", "El monto del egreso debe ser mayor a cero.")
                 return
-
             self.controller.add_expense(
-                amount,
-                self.exp_cat.currentText(),
-                self.exp_desc.text().strip(),
-                self.exp_prov.currentData()
+                amount, self.exp_cat.currentText(),
+                self.exp_desc.text().strip(), self.exp_prov.currentData()
             )
             self.load_data()
             self.exp_amount.clear(); self.exp_desc.clear()

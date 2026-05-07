@@ -11,6 +11,23 @@ class ReportsView(QWidget):
         self.op_controller = OperationsController()
         self.setup_ui()
 
+    def _get_pandas(self):
+        """Importa pandas y muestra advertencia si no está instalado.
+
+        Returns:
+            El módulo ``pandas`` si está disponible, ``None`` en caso contrario.
+        """
+        try:
+            import pandas as pd
+            return pd
+        except ImportError:
+            QMessageBox.warning(
+                self, "Dependencia Faltante",
+                "La librería 'pandas' no está instalada. "
+                "Ejecute 'pip install pandas' para habilitar los reportes."
+            )
+            return None
+
     def setup_ui(self):
         layout = QVBoxLayout(self)
         
@@ -39,10 +56,8 @@ class ReportsView(QWidget):
         layout.addStretch()
 
     def export_quotas(self):
-        try:
-            import pandas as pd
-        except ImportError:
-            QMessageBox.warning(self, "Dependencia Faltante", "La librería 'pandas' no está instalada. Ejecute 'pip install pandas' para habilitar los reportes.")
+        pd = self._get_pandas()
+        if pd is None:
             return
 
         path, _ = QFileDialog.getSaveFileName(self, "Guardar Reporte", "Cuotas.xlsx", "Excel Files (*.xlsx)")
@@ -64,10 +79,8 @@ class ReportsView(QWidget):
             QMessageBox.warning(self, "Error", f"Fallo al exportar: {e}")
 
     def export_expenses(self):
-        try:
-            import pandas as pd
-        except ImportError:
-            QMessageBox.warning(self, "Dependencia Faltante", "La librería 'pandas' no está instalada. Ejecute 'pip install pandas' para habilitar los reportes.")
+        pd = self._get_pandas()
+        if pd is None:
             return
 
         path, _ = QFileDialog.getSaveFileName(self, "Guardar Reporte", "Egresos.xlsx", "Excel Files (*.xlsx)")

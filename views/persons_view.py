@@ -1,9 +1,10 @@
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
-                             QTableWidget, QTableWidgetItem, QLabel, QLineEdit, 
-                             QFormLayout, QMessageBox, QHeaderView)
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
+                             QLabel, QLineEdit, QFormLayout, QMessageBox)
 from PyQt6.QtCore import Qt
 from controllers.property_controller import PropertyController
+from views.utils import create_table, populate_table
 import re
+
 
 class PersonsView(QWidget):
     def __init__(self):
@@ -18,16 +19,12 @@ class PersonsView(QWidget):
         # Left panel: Table
         left_panel = QWidget()
         left_layout = QVBoxLayout(left_panel)
-        
+
         title = QLabel("Gestión de Propietarios e Inquilinos")
         title.setObjectName("ViewTitle")
         left_layout.addWidget(title)
 
-        self.table = QTableWidget()
-        self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels(["ID", "Cédula", "Nombre", "Teléfono", "Correo"])
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table = create_table(["ID", "Cédula", "Nombre", "Teléfono", "Correo"])
         self.table.itemSelectionChanged.connect(self.on_select)
         left_layout.addWidget(self.table)
 
@@ -35,7 +32,7 @@ class PersonsView(QWidget):
         right_panel = QWidget()
         right_panel.setFixedWidth(300)
         right_layout = QVBoxLayout(right_panel)
-        
+
         form_title = QLabel("Detalles de Persona")
         form_title.setObjectName("FormTitle")
         right_layout.addWidget(form_title)
@@ -53,7 +50,7 @@ class PersonsView(QWidget):
         form_layout.addRow("Nombre:", self.name_input)
         form_layout.addRow("Teléfono:", self.phone_input)
         form_layout.addRow("Correo:", self.email_input)
-        
+
         right_layout.addLayout(form_layout)
 
         # Buttons
@@ -70,7 +67,7 @@ class PersonsView(QWidget):
 
         btn_layout.addWidget(self.btn_save)
         btn_layout.addWidget(self.btn_update)
-        
+
         btn_layout2 = QHBoxLayout()
         btn_layout2.addWidget(self.btn_delete)
         btn_layout2.addWidget(self.btn_clear)
@@ -83,15 +80,11 @@ class PersonsView(QWidget):
         layout.addWidget(right_panel)
 
     def load_data(self):
-        self.table.setRowCount(0)
         persons = self.controller.get_all_persons()
-        for i, p in enumerate(persons):
-            self.table.insertRow(i)
-            self.table.setItem(i, 0, QTableWidgetItem(str(p.id)))
-            self.table.setItem(i, 1, QTableWidgetItem(p.cedula))
-            self.table.setItem(i, 2, QTableWidgetItem(p.name))
-            self.table.setItem(i, 3, QTableWidgetItem(p.phone or ""))
-            self.table.setItem(i, 4, QTableWidgetItem(p.email or ""))
+        populate_table(self.table, [
+            [str(p.id), p.cedula, p.name, p.phone or "", p.email or ""]
+            for p in persons
+        ])
 
     def on_select(self):
         selected = self.table.selectedItems()
@@ -103,6 +96,22 @@ class PersonsView(QWidget):
             self.phone_input.setText(self.table.item(row, 3).text())
             self.email_input.setText(self.table.item(row, 4).text())
 
+    # ------------------------------------------------------------------ #
+    #  Validación centralizada (antes duplicada en save y update)          #
+    # ------------------------------------------------------------------ #
+    def _validate_person_inputs(self, cedula: str, phone: str, email: str) -> bool:
+        """Valida los campos de persona. Muestra advertencia y retorna False si falla."""
+        if not re.match(r'^\d{10}$', cedula):
+            QMessageBox.warning(self, "Error", "La cédula debe tener exactamente 10 dígitos numéricos.")
+            return False
+        if phone and not re.match(r'^\d{9,10}$', phone):
+            QMessageBox.warning(self, "Error", "El teléfono debe tener entre 9 y 10 dígitos numéricos.")
+            return False
+        if email and not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email):
+            QMessageBox.warning(self, "Error", "El formato del correo es inválido.")
+            return False
+        return True
+
     def save_person(self):
         cedula = self.cedula_input.text().strip()
         name = self.name_input.text().strip()
@@ -112,19 +121,10 @@ class PersonsView(QWidget):
         if not cedula or not name:
             QMessageBox.warning(self, "Error", "Cédula y Nombre son obligatorios")
             return
-            
-        if not re.match(r'^\d{10}$', cedula):
-            QMessageBox.warning(self, "Error", "La cédula debe tener exactamente 10 dígitos numéricos.")
+
+        if not self._validate_person_inputs(cedula, phone, email):
             return
-            
-        if phone and not re.match(r'^\d{9,10}$', phone):
-            QMessageBox.warning(self, "Error", "El teléfono debe tener entre 9 y 10 dígitos numéricos.")
-            return
-            
-        if email and not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email):
-            QMessageBox.warning(self, "Error", "El formato del correo es inválido.")
-            return
-        
+
         try:
             self.controller.add_person(cedula, name, phone, email)
             self.load_data()
@@ -148,16 +148,7 @@ class PersonsView(QWidget):
             QMessageBox.warning(self, "Error", "Cédula y Nombre son obligatorios")
             return
 
-        if not re.match(r'^\d{10}$', cedula):
-            QMessageBox.warning(self, "Error", "La cédula debe tener exactamente 10 dígitos numéricos.")
-            return
-            
-        if phone and not re.match(r'^\d{9,10}$', phone):
-            QMessageBox.warning(self, "Error", "El teléfono debe tener entre 9 y 10 dígitos numéricos.")
-            return
-            
-        if email and not re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email):
-            QMessageBox.warning(self, "Error", "El formato del correo es inválido.")
+        if not self._validate_person_inputs(cedula, phone, email):
             return
 
         try:
@@ -171,17 +162,23 @@ class PersonsView(QWidget):
         person_id = self.id_input.text()
         if not person_id:
             return
-            
+
         reply = QMessageBox.question(self, 'Confirmar', '¿Seguro que desea eliminar esta persona?',
                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        
+
         if reply == QMessageBox.StandardButton.Yes:
-            if self.controller.delete_person(int(person_id)):
-                self.load_data()
-                self.clear_form()
-                QMessageBox.information(self, "Éxito", "Persona eliminada")
-            else:
-                QMessageBox.warning(self, "Error", "No se pudo eliminar")
+            try:
+                if self.controller.delete_person(int(person_id)):
+                    self.load_data()
+                    self.clear_form()
+                    QMessageBox.information(self, "Éxito", "Persona eliminada")
+                else:
+                    QMessageBox.warning(self, "Error", "No se encontró la persona seleccionada.")
+            except ValueError as ve:
+                # B-3: mostrar al usuario el motivo de integridad referencial
+                QMessageBox.warning(self, "No se puede eliminar", str(ve))
+            except Exception as e:
+                QMessageBox.warning(self, "Error inesperado", f"Ocurrió un error: {e}")
 
     def clear_form(self):
         self.id_input.clear()
