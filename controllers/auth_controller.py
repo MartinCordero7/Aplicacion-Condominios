@@ -1,36 +1,45 @@
-from controllers.base_controller import BaseController
+import requests
 from models.user import User
-import hashlib
 
-
-class AuthController(BaseController):
+class AuthController:
+    API_URL = "https://condominio-api-2aef.onrender.com/api/v1"
 
     def login(self, username, password):
-        # B-4: sanear entradas antes de procesar
         username = username.strip()
         password = password.strip()
 
         if not username or not password:
             return None
 
-        hashed_pw = hashlib.sha256(password.encode()).hexdigest()
-        user = self.session.query(User).filter_by(username=username).first()
-
-        # B-9: verificar explícitamente is_active; un usuario inactivo nunca inicia sesión
-        if user and user.password_hash == hashed_pw and user.is_active:
+        response = requests.post(
+            f"{self.API_URL}/auth/login",
+            json={"username": username, "password": password},
+            headers={"Content-Type": "application/json"},
+            timeout=25
+        )
+        
+        if response.status_code in [200, 201]:
+            json_data = response.json()
+            data = json_data.get('data', json_data)
+            
+            # Crear un objeto User mockeado con los datos del JWT para mantener compatibilidad 
+            user = User(
+                username=data.get('username', username),
+                password_hash="mock",
+                full_name=data.get('username', username),
+                role="Administrador" if "ROLE_ADMIN" in data.get('roles', []) else "Residente",
+                is_active=True
+            )
+            
+            # Guardar el token si se requiere en otras peticiones
+            self.access_token = data.get('accessToken')
             return user
-        return None
+            
+        elif response.status_code == 401:
+            return None
+        else:
+            raise Exception(f"HTTP {response.status_code}: {response.text}")
 
     def create_admin_if_not_exists(self):
-        admin = self.session.query(User).filter_by(username="admin").first()
-        if not admin:
-            # B-5: contraseña almacenada como hash SHA-256 (nunca en texto plano)
-            hashed_pw = hashlib.sha256("admin123".encode()).hexdigest()
-            new_admin = User(
-                username="admin",
-                password_hash=hashed_pw,
-                full_name="Administrador Principal",
-                role="Administrador"
-            )
-            self.session.add(new_admin)
-            self.session.commit()
+        pass
+

@@ -2,13 +2,30 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton
 from PyQt6.QtCore import Qt
 from controllers.auth_controller import AuthController
 
+from PyQt6.QtCore import QThread, pyqtSignal
+
+class LoginWorker(QThread):
+    finished = pyqtSignal(object)  # Retorna el user o None
+    error = pyqtSignal(str)
+
+    def __init__(self, auth_controller, username, password):
+        super().__init__()
+        self.auth_controller = auth_controller
+        self.username = username
+        self.password = password
+
+    def run(self):
+        try:
+            user = self.auth_controller.login(self.username, self.password)
+            self.finished.emit(user)
+        except Exception as e:
+            self.error.emit(str(e))
+
 class LoginView(QWidget):
     def __init__(self, on_login_success):
         super().__init__()
         self.on_login_success = on_login_success
         self.auth_controller = AuthController()
-        
-        self.auth_controller.create_admin_if_not_exists()
         
         self.setup_ui()
 
@@ -45,9 +62,30 @@ class LoginView(QWidget):
         username = self.username_input.text().strip()
         password = self.password_input.text().strip()
 
-        user = self.auth_controller.login(username, password)
+        if not username or not password:
+            QMessageBox.warning(self, "Error", "Ingrese usuario y contraseña")
+            return
+
+        self.login_btn.setEnabled(False)
+        self.login_btn.setText("Conectando con servidor...")
+
+        self.worker = LoginWorker(self.auth_controller, username, password)
+        self.worker.finished.connect(self.on_login_finished)
+        self.worker.error.connect(self.on_login_error)
+        self.worker.start()
+
+    def on_login_finished(self, user):
+        self.login_btn.setEnabled(True)
+        self.login_btn.setText("Ingresar")
+        
         if user:
             self.on_login_success(user)
             self.close()
         else:
             QMessageBox.warning(self, "Error", "Usuario o contraseña incorrectos")
+
+    def on_login_error(self, error_msg):
+        self.login_btn.setEnabled(True)
+        self.login_btn.setText("Ingresar")
+        QMessageBox.warning(self, "Error de Conexión", f"No se pudo contactar al API:\n{error_msg}")
+
