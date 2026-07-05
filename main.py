@@ -1,5 +1,16 @@
-import sys
 import os
+import sys
+
+
+def ensure_local_virtualenv():
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    venv_python = os.path.join(project_root, '.venv', 'bin', 'python')
+
+    if os.path.exists(venv_python) and sys.prefix == sys.base_prefix:
+        os.execv(venv_python, [venv_python, *sys.argv])
+
+
+ensure_local_virtualenv()
 from PyQt6.QtWidgets import QApplication
 from database.connection import init_db
 from views.login_view import LoginView
