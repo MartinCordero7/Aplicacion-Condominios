@@ -38,6 +38,8 @@ class Provider(Base):
     name = Column(String(100), nullable=False)
     phone = Column(String(20))
     email = Column(String(100))
+    address = Column(String(200))
+    service_type = Column(String(50))
     
     expenses = relationship("Expense", back_populates="provider")
 

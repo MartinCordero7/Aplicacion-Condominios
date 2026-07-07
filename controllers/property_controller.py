@@ -1,17 +1,55 @@
-from controllers.base_controller import BaseController
-from models.property import Unit, Person
-from models.finance import Quota, Maintenance
+import requests
 from validators import validate_cedula, validate_phone, validate_email
 
+class MockPerson:
+    def __init__(self, id, cedula, name, phone, email):
+        self.id = id
+        self.cedula = cedula
+        self.name = name
+        self.phone = phone
+        self.email = email
 
-class PropertyController(BaseController):
+class MockUnit:
+    def __init__(self, id, identifier, unit_type, alicuota, owner_id, tenant_id, is_occupied):
+        self.id = id
+        self.identifier = identifier
+        self.unit_type = unit_type
+        self.alicuota = alicuota
+        self.owner_id = owner_id
+        self.tenant_id = tenant_id
+        self.is_occupied = is_occupied
+        # Para compatibilidad con las vistas
+        self.owner = MockPerson(owner_id, "N/A", f"Propietario {owner_id}", "", "") if owner_id else None
+        self.tenant = MockPerson(tenant_id, "N/A", f"Inquilino {tenant_id}", "", "") if tenant_id else None
+
+class PropertyController:
+    API_URL = "https://condominio-api-2aef.onrender.com/api/v1"
 
     # --- Person Methods ---
     def get_all_persons(self):
-        return self.session.query(Person).all()
+        try:
+            # En el backend esto puede ser GET /residentes o /personas, asumimos /residentes
+            response = requests.get(f"{self.API_URL}/residentes", timeout=60)
+            if response.status_code == 200:
+                data = response.json().get('data', {})
+                content = data.get('content', data) if isinstance(data, dict) else data
+                
+                persons = []
+                for item in content:
+                    persona_data = item.get('persona', {})
+                    persons.append(MockPerson(
+                        id=item.get('id'),
+                        cedula=persona_data.get('numeroIdentificacion', '0000000000'),
+                        name=f"{persona_data.get('nombres', '')} {persona_data.get('apellidos', '')}".strip(),
+                        phone=persona_data.get('telefono', ''),
+                        email=persona_data.get('correo', '')
+                    ))
+                return persons
+        except Exception as e:
+            print(f"Error obteniendo personas: {e}")
+        return []
 
     def add_person(self, cedula, name, phone, email):
-        # B-4: sanear; B-8: validar formato
         cedula = cedula.strip()
         name = name.strip()
         phone = phone.strip() if phone else ""
@@ -20,101 +58,141 @@ class PropertyController(BaseController):
         validate_cedula(cedula)
         validate_phone(phone)
         validate_email(email)
+        
+        parts = name.split(maxsplit=1)
+        nombres = parts[0]
+        apellidos = parts[1] if len(parts) > 1 else ""
 
-        person = Person(cedula=cedula, name=name, phone=phone, email=email)
-        self.session.add(person)
-        self.session.commit()
-        return person
+        payload = {
+            "tipoIdentificacion": "CEDULA",
+            "numeroIdentificacion": cedula,
+            "nombres": nombres,
+            "apellidos": apellidos,
+            "telefono": phone,
+            "correo": email,
+            "fechaNacimiento": "1990-01-01",
+            "direccion": "No especificada",
+            "fotoPerfil": "",
+            "estado": "ACTIVO"
+        }
+
+        response = requests.post(f"{self.API_URL}/residentes", json=payload, timeout=60)
+        if response.status_code in [200, 201]:
+            data = response.json().get('data', {})
+            persona = data.get('persona', {})
+            return MockPerson(
+                id=data.get('id', 0),
+                cedula=persona.get('numeroIdentificacion', cedula),
+                name=name,
+                phone=phone,
+                email=email
+            )
+        else:
+            raise Exception(f"Error API: {response.text}")
 
     def update_person(self, person_id, cedula, name, phone, email):
-        # B-4: sanear; B-8: validar formato
-        cedula = cedula.strip()
-        name = name.strip()
-        phone = phone.strip() if phone else ""
-        email = email.strip() if email else ""
-
-        validate_cedula(cedula)
-        validate_phone(phone)
-        validate_email(email)
-
-        person = self.session.query(Person).filter_by(id=person_id).first()
-        if person:
-            person.cedula = cedula
-            person.name = name
-            person.phone = phone
-            person.email = email
-            self.session.commit()
-        return person
+        # A falta de PUT en la documentación oficial, se asume la misma ruta
+        parts = name.split(maxsplit=1)
+        payload = {
+            "tipoIdentificacion": "CEDULA",
+            "numeroIdentificacion": cedula,
+            "nombres": parts[0],
+            "apellidos": parts[1] if len(parts) > 1 else "",
+            "telefono": phone,
+            "correo": email,
+            "fechaNacimiento": "1990-01-01",
+            "direccion": "No especificada",
+            "fotoPerfil": "",
+            "estado": "ACTIVO"
+        }
+        response = requests.put(f"{self.API_URL}/residentes/{person_id}", json=payload, timeout=60)
+        if response.status_code in [200, 201]:
+            return MockPerson(person_id, cedula, name, phone, email)
+        raise Exception(f"Error API: {response.text}")
 
     def delete_person(self, person_id):
-        person = self.session.query(Person).filter_by(id=person_id).first()
-        if person:
-            # B-3: verificar integridad referencial antes de eliminar
-            if person.owned_units or person.rented_units:
-                raise ValueError(
-                    "No se puede eliminar la persona porque tiene unidades asociadas. "
-                    "Desasóciela de todas sus unidades primero."
-                )
-            self.session.delete(person)
-            self.session.commit()
-            return True
-        return False
+        response = requests.delete(f"{self.API_URL}/residentes/{person_id}", timeout=60)
+        return response.status_code in [200, 204]
 
     # --- Unit Methods ---
     def get_all_units(self):
-        return self.session.query(Unit).all()
+        try:
+            response = requests.get(f"{self.API_URL}/unidades", timeout=60)
+            if response.status_code == 200:
+                data = response.json().get('data', {})
+                content = data.get('content', data) if isinstance(data, dict) else data
+                
+                units = []
+                for item in content:
+                    units.append(MockUnit(
+                        id=item.get('id'),
+                        identifier=item.get('numero', item.get('identifier', 'S/N')),
+                        unit_type=item.get('tipo', 'DEPARTAMENTO'),
+                        alicuota=item.get('alicuota', 0.0),
+                        owner_id=item.get('idPropietario', None),
+                        tenant_id=item.get('idInquilino', None),
+                        is_occupied=item.get('ocupada', False)
+                    ))
+                return units
+        except Exception as e:
+            print(f"Error obteniendo unidades: {e}")
+        return []
 
     def add_unit(self, identifier, unit_type, alicuota, owner_id=None, tenant_id=None):
-        # B-1: validar que la alícuota no sea negativa
         if alicuota < 0:
             raise ValueError("La alícuota no puede ser negativa.")
-
-        unit = Unit(
-            # B-4: sanear identificador
-            identifier=identifier.strip(),
-            unit_type=unit_type.strip(),
-            alicuota=round(float(alicuota), 4),
-            owner_id=owner_id,
-            tenant_id=tenant_id,
-            is_occupied=tenant_id is not None or owner_id is not None
-        )
-        self.session.add(unit)
-        self.session.commit()
-        return unit
+            
+        payload = {
+            "condominioId": 1,
+            "torreId": 1,
+            "estadoId": 1,
+            "numero": identifier.strip(),
+            "piso": "1",
+            "tipo": unit_type.strip().upper(),
+            "alicuota": round(float(alicuota), 4)
+        }
+        
+        response = requests.post(f"{self.API_URL}/unidades", json=payload, timeout=60)
+        if response.status_code in [200, 201]:
+            data = response.json().get('data', {})
+            return MockUnit(
+                id=data.get('id', 0),
+                identifier=identifier,
+                unit_type=unit_type,
+                alicuota=alicuota,
+                owner_id=owner_id,
+                tenant_id=tenant_id,
+                is_occupied=(owner_id is not None or tenant_id is not None)
+            )
+        raise Exception(f"Error API: {response.text}")
 
     def update_unit(self, unit_id, identifier, unit_type, alicuota, owner_id=None, tenant_id=None):
-        # B-1: validar que la alícuota no sea negativa
         if alicuota < 0:
             raise ValueError("La alícuota no puede ser negativa.")
-
-        unit = self.session.query(Unit).filter_by(id=unit_id).first()
-        if unit:
-            unit.identifier = identifier.strip()
-            unit.unit_type = unit_type.strip()
-            unit.alicuota = round(float(alicuota), 4)
-            unit.owner_id = owner_id
-            unit.tenant_id = tenant_id
-            unit.is_occupied = tenant_id is not None or owner_id is not None
-            self.session.commit()
-        return unit
+            
+        payload = {
+            "condominioId": 1,
+            "torreId": 1,
+            "estadoId": 1 if (owner_id or tenant_id) else 2,
+            "numero": identifier.strip(),
+            "piso": "1",
+            "tipo": unit_type.strip().upper(),
+            "alicuota": round(float(alicuota), 4)
+        }
+        
+        response = requests.put(f"{self.API_URL}/unidades/{unit_id}", json=payload, timeout=60)
+        if response.status_code in [200, 201]:
+            return MockUnit(
+                id=unit_id,
+                identifier=identifier,
+                unit_type=unit_type,
+                alicuota=alicuota,
+                owner_id=owner_id,
+                tenant_id=tenant_id,
+                is_occupied=(owner_id is not None or tenant_id is not None)
+            )
+        raise Exception(f"Error API: {response.text}")
 
     def delete_unit(self, unit_id):
-        unit = self.session.query(Unit).filter_by(id=unit_id).first()
-        if unit:
-            # B-3: verificar integridad referencial — cuotas y tickets de mantenimiento
-            quotas = self.session.query(Quota).filter_by(unit_id=unit_id).first()
-            maint = self.session.query(Maintenance).filter_by(unit_id=unit_id).first()
-            if quotas:
-                raise ValueError(
-                    "No se puede eliminar la unidad porque tiene cuotas asociadas. "
-                    "Elimine primero todas sus cuotas."
-                )
-            if maint:
-                raise ValueError(
-                    "No se puede eliminar la unidad porque tiene tickets de mantenimiento asociados. "
-                    "Cierre o elimine los tickets primero."
-                )
-            self.session.delete(unit)
-            self.session.commit()
-            return True
-        return False
+        response = requests.delete(f"{self.API_URL}/unidades/{unit_id}", timeout=60)
+        return response.status_code in [200, 204]

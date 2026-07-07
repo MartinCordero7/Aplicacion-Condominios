@@ -15,7 +15,7 @@ class AuthController:
             f"{self.API_URL}/auth/login",
             json={"username": username, "password": password},
             headers={"Content-Type": "application/json"},
-            timeout=25
+            timeout=60
         )
         
         if response.status_code in [200, 201]:
