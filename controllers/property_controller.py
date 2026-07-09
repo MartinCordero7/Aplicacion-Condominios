@@ -1,13 +1,18 @@
 import requests
 from validators import validate_cedula, validate_phone, validate_email
+from controllers.auth_controller import AuthController
 
 class MockPerson:
-    def __init__(self, id, cedula, name, phone, email):
+    def __init__(self, id, cedula, name, phone, email, tipoIdentificacion="CEDULA", fechaNacimiento="1990-01-01", direccion="", estado="ACTIVO"):
         self.id = id
         self.cedula = cedula
         self.name = name
         self.phone = phone
         self.email = email
+        self.tipoIdentificacion = tipoIdentificacion
+        self.fechaNacimiento = fechaNacimiento
+        self.direccion = direccion
+        self.estado = estado
 
 class MockUnit:
     def __init__(self, id, identifier, unit_type, alicuota, owner_id, tenant_id, is_occupied):
@@ -29,95 +34,108 @@ class PropertyController:
     def get_all_persons(self):
         try:
             # En el backend esto puede ser GET /residentes o /personas, asumimos /residentes
-            response = requests.get(f"{self.API_URL}/residentes", timeout=60)
+            response = requests.get(f"{self.API_URL}/residentes", headers=AuthController.get_headers(), timeout=60)
             if response.status_code == 200:
                 data = response.json().get('data', {})
                 content = data.get('content', data) if isinstance(data, dict) else data
                 
                 persons = []
                 for item in content:
-                    persona_data = item.get('persona', {})
                     persons.append(MockPerson(
                         id=item.get('id'),
-                        cedula=persona_data.get('numeroIdentificacion', '0000000000'),
-                        name=f"{persona_data.get('nombres', '')} {persona_data.get('apellidos', '')}".strip(),
-                        phone=persona_data.get('telefono', ''),
-                        email=persona_data.get('correo', '')
+                        cedula=item.get('numeroIdentificacion', '0000000000'),
+                        name=f"{item.get('nombres', '')} {item.get('apellidos', '')}".strip(),
+                        phone=item.get('telefono', ''),
+                        email=item.get('correo', ''),
+                        tipoIdentificacion=item.get('tipoIdentificacion', 'CEDULA'),
+                        fechaNacimiento=item.get('fechaNacimiento', '1990-01-01'),
+                        direccion=item.get('direccion', ''),
+                        estado=item.get('estado', 'ACTIVO')
                     ))
                 return persons
         except Exception as e:
             print(f"Error obteniendo personas: {e}")
         return []
 
-    def add_person(self, cedula, name, phone, email):
+    def add_person(self, cedula, name, phone, email, tipoIdentificacion="CEDULA", fechaNacimiento="1990-01-01", direccion="", estado="ACTIVO"):
         cedula = cedula.strip()
         name = name.strip()
         phone = phone.strip() if phone else ""
         email = email.strip() if email else ""
-
+        
+        # Validations
         validate_cedula(cedula)
-        validate_phone(phone)
-        validate_email(email)
+        # Assuming you'd like to disable phone/email if blank, the validators handle it.
+        if phone: validate_phone(phone)
+        if email: validate_email(email)
         
         parts = name.split(maxsplit=1)
         nombres = parts[0]
         apellidos = parts[1] if len(parts) > 1 else ""
 
         payload = {
-            "tipoIdentificacion": "CEDULA",
+            "tipoIdentificacion": tipoIdentificacion,
             "numeroIdentificacion": cedula,
             "nombres": nombres,
             "apellidos": apellidos,
             "telefono": phone,
             "correo": email,
-            "fechaNacimiento": "1990-01-01",
-            "direccion": "No especificada",
+            "fechaNacimiento": fechaNacimiento,
+            "direccion": direccion,
             "fotoPerfil": "",
-            "estado": "ACTIVO"
+            "estado": estado
         }
 
-        response = requests.post(f"{self.API_URL}/residentes", json=payload, timeout=60)
+        response = requests.post(f"{self.API_URL}/residentes", json=payload, headers=AuthController.get_headers(), timeout=60)
         if response.status_code in [200, 201]:
             data = response.json().get('data', {})
-            persona = data.get('persona', {})
             return MockPerson(
                 id=data.get('id', 0),
-                cedula=persona.get('numeroIdentificacion', cedula),
+                cedula=data.get('numeroIdentificacion', cedula),
                 name=name,
                 phone=phone,
-                email=email
+                email=email,
+                tipoIdentificacion=tipoIdentificacion,
+                fechaNacimiento=fechaNacimiento,
+                direccion=direccion,
+                estado=estado
             )
+        elif response.status_code == 400:
+            error_data = response.json()
+            raise Exception(f"Validación fallida: {error_data.get('message', response.text)}")
         else:
             raise Exception(f"Error API: {response.text}")
 
-    def update_person(self, person_id, cedula, name, phone, email):
-        # A falta de PUT en la documentación oficial, se asume la misma ruta
+    def update_person(self, person_id, cedula, name, phone, email, tipoIdentificacion="CEDULA", fechaNacimiento="1990-01-01", direccion="", estado="ACTIVO"):
         parts = name.split(maxsplit=1)
         payload = {
-            "tipoIdentificacion": "CEDULA",
+            "tipoIdentificacion": tipoIdentificacion,
             "numeroIdentificacion": cedula,
             "nombres": parts[0],
             "apellidos": parts[1] if len(parts) > 1 else "",
             "telefono": phone,
             "correo": email,
-            "fechaNacimiento": "1990-01-01",
-            "direccion": "No especificada",
+            "fechaNacimiento": fechaNacimiento,
+            "direccion": direccion,
             "fotoPerfil": "",
-            "estado": "ACTIVO"
+            "estado": estado
         }
-        response = requests.put(f"{self.API_URL}/residentes/{person_id}", json=payload, timeout=60)
+        response = requests.put(f"{self.API_URL}/residentes/{person_id}", json=payload, headers=AuthController.get_headers(), timeout=60)
         if response.status_code in [200, 201]:
-            return MockPerson(person_id, cedula, name, phone, email)
+            return MockPerson(person_id, cedula, name, phone, email, tipoIdentificacion, fechaNacimiento, direccion, estado)
+        elif response.status_code == 400:
+            error_data = response.json()
+            raise Exception(f"Validación fallida: {error_data.get('message', response.text)}")
         raise Exception(f"Error API: {response.text}")
 
     def delete_person(self, person_id):
-        response = requests.delete(f"{self.API_URL}/residentes/{person_id}", timeout=60)
+        response = requests.delete(f"{self.API_URL}/residentes/{person_id}", headers=AuthController.get_headers(), timeout=60)
         return response.status_code in [200, 204]
 
     # --- Unit Methods ---
     def get_all_units(self):
         try:
-            response = requests.get(f"{self.API_URL}/unidades", timeout=60)
+            response = requests.get(f"{self.API_URL}/unidades", headers=AuthController.get_headers(), timeout=60)
             if response.status_code == 200:
                 data = response.json().get('data', {})
                 content = data.get('content', data) if isinstance(data, dict) else data
@@ -152,7 +170,7 @@ class PropertyController:
             "alicuota": round(float(alicuota), 4)
         }
         
-        response = requests.post(f"{self.API_URL}/unidades", json=payload, timeout=60)
+        response = requests.post(f"{self.API_URL}/unidades", json=payload, headers=AuthController.get_headers(), timeout=60)
         if response.status_code in [200, 201]:
             data = response.json().get('data', {})
             return MockUnit(
@@ -180,7 +198,7 @@ class PropertyController:
             "alicuota": round(float(alicuota), 4)
         }
         
-        response = requests.put(f"{self.API_URL}/unidades/{unit_id}", json=payload, timeout=60)
+        response = requests.put(f"{self.API_URL}/unidades/{unit_id}", json=payload, headers=AuthController.get_headers(), timeout=60)
         if response.status_code in [200, 201]:
             return MockUnit(
                 id=unit_id,
@@ -194,5 +212,5 @@ class PropertyController:
         raise Exception(f"Error API: {response.text}")
 
     def delete_unit(self, unit_id):
-        response = requests.delete(f"{self.API_URL}/unidades/{unit_id}", timeout=60)
+        response = requests.delete(f"{self.API_URL}/unidades/{unit_id}", headers=AuthController.get_headers(), timeout=60)
         return response.status_code in [200, 204]

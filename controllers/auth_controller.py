@@ -3,6 +3,14 @@ from models.user import User
 
 class AuthController:
     API_URL = "https://condominio-api-2aef.onrender.com/api/v1"
+    access_token = None
+
+    @staticmethod
+    def get_headers():
+        headers = {}
+        if AuthController.access_token:
+            headers["Authorization"] = f"Bearer {AuthController.access_token}"
+        return headers
 
     def login(self, username, password):
         username = username.strip()
@@ -33,6 +41,7 @@ class AuthController:
             
             # Guardar el token si se requiere en otras peticiones
             self.access_token = data.get('accessToken')
+            AuthController.access_token = self.access_token
             return user
             
         elif response.status_code == 401:

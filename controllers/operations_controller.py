@@ -3,6 +3,7 @@ import datetime
 from controllers.base_controller import BaseController
 from models.finance import Expense, Provider, Maintenance
 from validators import validate_phone, validate_email, validate_ruc
+from controllers.auth_controller import AuthController
 
 class MockMaintenance:
     def __init__(self, id, description, unit_id, status, report_date, cost):
@@ -62,7 +63,7 @@ class OperationsController(BaseController):
             "prioridad": "ALTA"
         }
         
-        response = requests.post(f"{self.API_URL}/tickets", json=payload, timeout=60)
+        response = requests.post(f"{self.API_URL}/tickets", json=payload, headers=AuthController.get_headers(), timeout=60)
         if response.status_code not in [200, 201]:
             raise Exception(f"No se pudo crear el Ticket en la API: HTTP {response.status_code} - {response.text}")
 
@@ -81,7 +82,7 @@ class OperationsController(BaseController):
     # --- Maintenance (Mapeado a Tickets API) ---
     def get_all_maintenance(self):
         try:
-            response = requests.get(f"{self.API_URL}/tickets", timeout=60)
+            response = requests.get(f"{self.API_URL}/tickets", headers=AuthController.get_headers(), timeout=60)
             if response.status_code == 200:
                 data = response.json().get('data', {})
                 content = data.get('content', data) if isinstance(data, dict) else data
@@ -114,7 +115,7 @@ class OperationsController(BaseController):
             "prioridad": "MEDIA"
         }
         
-        response = requests.post(f"{self.API_URL}/tickets", json=payload, timeout=60)
+        response = requests.post(f"{self.API_URL}/tickets", json=payload, headers=AuthController.get_headers(), timeout=60)
         if response.status_code in [200, 201]:
             data = response.json().get('data', {})
             return MockMaintenance(
@@ -134,7 +135,7 @@ class OperationsController(BaseController):
         estado_id = 3 if status.lower() in ['cerrado', 'completado'] else 2
         
         try:
-            response_get = requests.get(f"{self.API_URL}/tickets/{maint_id}", timeout=60)
+            response_get = requests.get(f"{self.API_URL}/tickets/{maint_id}", headers=AuthController.get_headers(), timeout=60)
             if response_get.status_code == 200:
                 ticket_data = response_get.json().get('data', {})
                 payload = {
@@ -147,6 +148,7 @@ class OperationsController(BaseController):
                 response = requests.put(
                     f"{self.API_URL}/tickets/{maint_id}",
                     json=payload,
+                    headers=AuthController.get_headers(),
                     timeout=60
                 )
             else:
