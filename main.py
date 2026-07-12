@@ -11,6 +11,7 @@ def ensure_local_virtualenv():
 
 
 ensure_local_virtualenv()
+# pyrefly: ignore [missing-import]
 from PyQt6.QtWidgets import QApplication
 from database.connection import init_db
 from views.login_view import LoginView

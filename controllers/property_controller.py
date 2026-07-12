@@ -15,17 +15,17 @@ class MockPerson:
         self.estado = estado
 
 class MockUnit:
-    def __init__(self, id, identifier, unit_type, alicuota, owner_id, tenant_id, is_occupied):
+    def __init__(self, id, identifier, unit_type, alicuota, estado_id=1, estado_nombre="HABITADO", piso=None, torre_nombre=None):
         self.id = id
-        self.identifier = identifier
-        self.unit_type = unit_type
+        self.identifier = identifier  # numero
+        self.unit_type = unit_type    # tipo ENUM
         self.alicuota = alicuota
-        self.owner_id = owner_id
-        self.tenant_id = tenant_id
-        self.is_occupied = is_occupied
-        # Para compatibilidad con las vistas
-        self.owner = MockPerson(owner_id, "N/A", f"Propietario {owner_id}", "", "") if owner_id else None
-        self.tenant = MockPerson(tenant_id, "N/A", f"Inquilino {tenant_id}", "", "") if tenant_id else None
+        self.estado_id = estado_id
+        self.estado_nombre = estado_nombre
+        self.piso = piso
+        self.torre_nombre = torre_nombre
+        # Compatibilidad legacy (para no romper nada que aún use is_occupied)
+        self.is_occupied = (estado_nombre == "HABITADO")
 
 class PropertyController:
     API_URL = "https://condominio-api-2aef.onrender.com/api/v1"
@@ -139,75 +139,84 @@ class PropertyController:
             if response.status_code == 200:
                 data = response.json().get('data', {})
                 content = data.get('content', data) if isinstance(data, dict) else data
-                
+
                 units = []
                 for item in content:
                     units.append(MockUnit(
                         id=item.get('id'),
-                        identifier=item.get('numero', item.get('identifier', 'S/N')),
+                        identifier=item.get('numero', 'S/N'),
                         unit_type=item.get('tipo', 'DEPARTAMENTO'),
                         alicuota=item.get('alicuota', 0.0),
-                        owner_id=item.get('idPropietario', None),
-                        tenant_id=item.get('idInquilino', None),
-                        is_occupied=item.get('ocupada', False)
+                        estado_id=item.get('estadoId', 1),
+                        estado_nombre=item.get('estadoNombre', 'HABITADO'),
+                        piso=item.get('piso'),
+                        torre_nombre=item.get('torreNombre'),
                     ))
                 return units
         except Exception as e:
             print(f"Error obteniendo unidades: {e}")
         return []
 
-    def add_unit(self, identifier, unit_type, alicuota, owner_id=None, tenant_id=None):
+    def add_unit(self, numero, tipo, alicuota, piso=None, estado_id=1, condominio_id=1, torre_id=None):
+        """Crea una unidad. Payload exacto según POST /api/v1/unidades del contrato."""
         if alicuota < 0:
             raise ValueError("La alícuota no puede ser negativa.")
-            
+
         payload = {
-            "condominioId": 1,
-            "torreId": 1,
-            "estadoId": 1,
-            "numero": identifier.strip(),
-            "piso": "1",
-            "tipo": unit_type.strip().upper(),
+            "condominioId": condominio_id,
+            "torreId": torre_id,
+            "estadoId": estado_id,
+            "numero": numero.strip(),
+            "piso": piso.strip() if piso else None,
+            "tipo": tipo.strip().upper(),
             "alicuota": round(float(alicuota), 4)
         }
-        
+        # Eliminar claves con valor None para no enviar campos nulos innecesarios
+        payload = {k: v for k, v in payload.items() if v is not None}
+
         response = requests.post(f"{self.API_URL}/unidades", json=payload, headers=AuthController.get_headers(), timeout=60)
         if response.status_code in [200, 201]:
             data = response.json().get('data', {})
             return MockUnit(
                 id=data.get('id', 0),
-                identifier=identifier,
-                unit_type=unit_type,
-                alicuota=alicuota,
-                owner_id=owner_id,
-                tenant_id=tenant_id,
-                is_occupied=(owner_id is not None or tenant_id is not None)
+                identifier=data.get('numero', numero),
+                unit_type=data.get('tipo', tipo),
+                alicuota=data.get('alicuota', alicuota),
+                estado_id=data.get('estadoId', estado_id),
+                estado_nombre=data.get('estadoNombre', 'HABITADO'),
+                piso=data.get('piso', piso),
+                torre_nombre=data.get('torreNombre'),
             )
         raise Exception(f"Error API: {response.text}")
 
-    def update_unit(self, unit_id, identifier, unit_type, alicuota, owner_id=None, tenant_id=None):
+    def update_unit(self, unit_id, numero, tipo, alicuota, piso=None, estado_id=1, condominio_id=1, torre_id=None):
+        """Actualiza una unidad. Payload exacto según PUT /api/v1/unidades/{id} del contrato."""
         if alicuota < 0:
             raise ValueError("La alícuota no puede ser negativa.")
-            
+
         payload = {
-            "condominioId": 1,
-            "torreId": 1,
-            "estadoId": 1 if (owner_id or tenant_id) else 2,
-            "numero": identifier.strip(),
-            "piso": "1",
-            "tipo": unit_type.strip().upper(),
+            "condominioId": condominio_id,
+            "torreId": torre_id,
+            "estadoId": estado_id,
+            "numero": numero.strip(),
+            "piso": piso.strip() if piso else None,
+            "tipo": tipo.strip().upper(),
             "alicuota": round(float(alicuota), 4)
         }
-        
+        payload = {k: v for k, v in payload.items() if v is not None}
+
         response = requests.put(f"{self.API_URL}/unidades/{unit_id}", json=payload, headers=AuthController.get_headers(), timeout=60)
         if response.status_code in [200, 201]:
+            data = response.json().get('data', {})
             return MockUnit(
                 id=unit_id,
-                identifier=identifier,
-                unit_type=unit_type,
-                alicuota=alicuota,
-                owner_id=owner_id,
-                tenant_id=tenant_id,
-                is_occupied=(owner_id is not None or tenant_id is not None)
+                identifier=data.get('numero', numero),
+                unit_type=data.get('tipo', tipo),
+                alicuota=data.get('alicuota', alicuota),
+                estado_id=data.get('estadoId', estado_id),
+                estado_nombre=data.get('estadoNombre', 'HABITADO'),
+                piso=data.get('piso', piso),
+                torre_nombre=data.get('torreNombre'),
             )
         raise Exception(f"Error API: {response.text}")
 

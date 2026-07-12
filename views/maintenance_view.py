@@ -1,11 +1,23 @@
+# pyrefly: ignore [missing-import]
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                              QLabel, QLineEdit, QFormLayout, QMessageBox, QComboBox)
+# pyrefly: ignore [missing-import]
+from PyQt6.QtCore import QTimer
 from controllers.operations_controller import OperationsController
 from controllers.property_controller import PropertyController
 from views.utils import create_table, populate_table
 
 # Etiqueta para unidades sin asignación específica (áreas de uso común)
 COMMON_AREA = "Área Común"
+
+# Mapeo estado (nombre del contrato) → estadoActualId (FK a estado_ticket)
+# Según datos semilla: 1=ABIERTO, 2=EN_PROGRESO, 3=CERRADO, 4=CANCELADO
+ESTADO_TICKET_OPTIONS = [
+    ("ABIERTO", 1),
+    ("EN_PROGRESO", 2),
+    ("CERRADO", 3),
+    ("CANCELADO", 4),
+]
 
 
 class MaintenanceView(QWidget):
@@ -15,6 +27,11 @@ class MaintenanceView(QWidget):
         self.prop_controller = PropertyController()
         self.setup_ui()
         self.load_data()
+
+        # Timer to refresh data silently every 15 seconds
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.load_data)
+        self.timer.start(15000)
 
     def setup_ui(self):
         layout = QHBoxLayout(self)
@@ -63,7 +80,8 @@ class MaintenanceView(QWidget):
         self.maint_id_input = QLineEdit()
         self.maint_id_input.setReadOnly(True)
         self.status_combo = QComboBox()
-        self.status_combo.addItems(["Pendiente", "En Proceso", "Finalizado"])
+        for label, _ in ESTADO_TICKET_OPTIONS:
+            self.status_combo.addItem(label)
         self.cost_input = QLineEdit()
         self.cost_input.setPlaceholderText("Costo final (opcional)")
 
@@ -83,9 +101,16 @@ class MaintenanceView(QWidget):
         layout.addWidget(right_panel)
 
     def load_data(self):
+        selected = self.table.selectedItems()
+        selected_id = None
+        if selected:
+            row = selected[0].row()
+            selected_id = self.table.item(row, 0).text()
+
         tickets = self.op_controller.get_all_maintenance()
         units = {u.id: u.identifier for u in self.prop_controller.get_all_units()}
 
+        self.table.blockSignals(True)
         populate_table(self.table, [
             [
                 str(t.id),
@@ -98,17 +123,31 @@ class MaintenanceView(QWidget):
             for t in tickets
         ])
 
-        self.unit_combo.clear()
-        self.unit_combo.addItem(COMMON_AREA, None)
-        for u_id, u_ident in units.items():
-            self.unit_combo.addItem(u_ident, u_id)
+        if selected_id:
+            for row in range(self.table.rowCount()):
+                item = self.table.item(row, 0)
+                if item and item.text() == selected_id:
+                    self.table.selectRow(row)
+                    break
+        self.table.blockSignals(False)
+
+        if self.unit_combo.count() == 0:
+            self.unit_combo.clear()
+            self.unit_combo.addItem(COMMON_AREA, None)
+            for u_id, u_ident in units.items():
+                self.unit_combo.addItem(u_ident, u_id)
 
     def on_select(self):
         selected = self.table.selectedItems()
         if selected:
             row = selected[0].row()
             self.maint_id_input.setText(self.table.item(row, 0).text())
-            self.status_combo.setCurrentText(self.table.item(row, 5).text())
+            estado_api = self.table.item(row, 5).text()  # valor del contrato en UPPERCASE
+            for i, (label, _) in enumerate(ESTADO_TICKET_OPTIONS):
+                if label == estado_api:
+                    self.status_combo.setCurrentIndex(i)
+                    return
+            self.status_combo.setCurrentIndex(0)  # fallback
 
     def add_maintenance(self):
         desc = self.desc_input.text().strip()
@@ -134,8 +173,12 @@ class MaintenanceView(QWidget):
                 QMessageBox.warning(self, "Error", "El costo no puede ser negativo.")
                 return
 
+            # Obtener el estadoActualId del item seleccionado
+            idx = self.status_combo.currentIndex()
+            estado_id = ESTADO_TICKET_OPTIONS[idx][1] if 0 <= idx < len(ESTADO_TICKET_OPTIONS) else 2
+
             self.op_controller.update_maintenance_status(
-                int(maint_id), self.status_combo.currentText(), cost
+                int(maint_id), estado_id, cost
             )
             self.load_data()
             self.maint_id_input.clear(); self.cost_input.clear()

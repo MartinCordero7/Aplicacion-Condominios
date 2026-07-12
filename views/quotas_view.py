@@ -1,7 +1,9 @@
+# pyrefly: ignore [missing-import]
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                              QLabel, QLineEdit, QFormLayout, QMessageBox,
                              QDateEdit, QComboBox)
-from PyQt6.QtCore import Qt, QDate
+# pyrefly: ignore [missing-import]
+from PyQt6.QtCore import Qt, QDate, QTimer
 from controllers.finance_controller import FinanceController
 from controllers.property_controller import PropertyController
 from views.utils import create_table, populate_table
@@ -15,6 +17,11 @@ class QuotasView(QWidget):
         self.property_controller = PropertyController()
         self.setup_ui()
         self.load_data()
+
+        # Timer to refresh data silently every 15 seconds
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.load_data)
+        self.timer.start(15000)
 
     def setup_ui(self):
         layout = QHBoxLayout(self)
@@ -59,7 +66,8 @@ class QuotasView(QWidget):
         self.due_date_input.setDate(QDate.currentDate().addDays(30))
         self.amount_input = QLineEdit()
         self.type_combo = QComboBox()
-        self.type_combo.addItems(["Ordinaria", "Extraordinaria", "Multa"])
+        # ENUM tipo_cuota_enum del schema.sql
+        self.type_combo.addItems(["ORDINARIA", "EXTRAORDINARIA", "MULTA", "FONDO_RESERVA"])
         self.desc_input = QLineEdit()
 
         form_layout.addRow("Unidad:", self.unit_combo)
@@ -84,7 +92,8 @@ class QuotasView(QWidget):
         self.pay_quota_id = QLineEdit()
         self.pay_quota_id.setReadOnly(True)
         self.pay_method = QComboBox()
-        self.pay_method.addItems(["Transferencia", "Efectivo", "Cheque"])
+        # Valores en uppercase para el campo 'metodo' del schema (varchar libre, sin ENUM)
+        self.pay_method.addItems(["TRANSFERENCIA", "EFECTIVO", "CHEQUE", "TARJETA"])
         self.pay_ref = QLineEdit()
 
         pay_form.addRow("Cuota ID:", self.pay_quota_id)
@@ -103,9 +112,16 @@ class QuotasView(QWidget):
         layout.addWidget(right_panel)
 
     def load_data(self):
+        selected = self.table.selectedItems()
+        selected_id = None
+        if selected:
+            row = selected[0].row()
+            selected_id = self.table.item(row, 0).text()
+
         quotas = self.finance_controller.get_all_quotas()
         units = {u.id: u.identifier for u in self.property_controller.get_all_units()}
 
+        self.table.blockSignals(True)
         populate_table(self.table, [
             [
                 str(q.id),
@@ -118,7 +134,17 @@ class QuotasView(QWidget):
             ]
             for q in quotas
         ])
-        self.load_units_combo()
+
+        if selected_id:
+            for row in range(self.table.rowCount()):
+                item = self.table.item(row, 0)
+                if item and item.text() == selected_id:
+                    self.table.selectRow(row)
+                    break
+        self.table.blockSignals(False)
+        
+        if self.unit_combo.count() == 0:
+            self.load_units_combo()
 
     def load_units_combo(self):
         self.unit_combo.clear()

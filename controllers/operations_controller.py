@@ -86,14 +86,14 @@ class OperationsController(BaseController):
             if response.status_code == 200:
                 data = response.json().get('data', {})
                 content = data.get('content', data) if isinstance(data, dict) else data
-                
+
                 maint_list = []
                 for item in content:
                     maint_list.append(MockMaintenance(
                         id=item.get('id'),
                         description=item.get('titulo', '') + " - " + item.get('descripcion', ''),
-                        unit_id=None,
-                        status=item.get('estado', 'Pendiente'),
+                        unit_id=item.get('unidadId'),
+                        status=item.get('estado', 'ABIERTO'),  # ABIERTO|EN_PROGRESO|CERRADO|CANCELADO
                         report_date=item.get('fechaCreacion', ''),
                         cost=0.0
                     ))
@@ -128,19 +128,19 @@ class OperationsController(BaseController):
             )
         raise Exception(f"Error API: {response.text}")
 
-    def update_maintenance_status(self, maint_id, status, cost=0.0):
+    def update_maintenance_status(self, maint_id, estado_id, cost=0.0):
+        """Actualiza el estado de un ticket. estado_id es el FK a estado_ticket (int)."""
         if cost < 0:
             raise ValueError("El costo del mantenimiento no puede ser negativo.")
 
-        estado_id = 3 if status.lower() in ['cerrado', 'completado'] else 2
-        
         try:
+            # Primero obtenemos los datos actuales del ticket para hacer un PUT completo
             response_get = requests.get(f"{self.API_URL}/tickets/{maint_id}", headers=AuthController.get_headers(), timeout=60)
             if response_get.status_code == 200:
                 ticket_data = response_get.json().get('data', {})
                 payload = {
-                    "categoriaId": ticket_data.get('categoriaId', 2),
-                    "estadoActualId": estado_id,
+                    "categoriaId": ticket_data.get('categoriaId', 1),
+                    "estadoActualId": int(estado_id),
                     "titulo": ticket_data.get('titulo', 'Mantenimiento'),
                     "descripcion": ticket_data.get('descripcion', 'Actualizado desde Desktop'),
                     "prioridad": ticket_data.get('prioridad', 'MEDIA')
@@ -155,11 +155,12 @@ class OperationsController(BaseController):
                 raise Exception(f"No se pudo obtener el ticket: HTTP {response_get.status_code}")
 
             if response.status_code in [200, 201]:
+                data = response.json().get('data', {})
                 return MockMaintenance(
                     id=maint_id,
                     description="Actualizado",
                     unit_id=None,
-                    status=status,
+                    status=data.get('estado', 'EN_PROGRESO'),
                     report_date=str(datetime.date.today()),
                     cost=cost
                 )
